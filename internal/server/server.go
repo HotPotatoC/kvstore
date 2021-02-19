@@ -58,6 +58,7 @@ func (s *server) Start(host string, port int) {
 	  PID: %d
 
 `, port, os.Getpid())
+	log.Info("Ready to accept connections.")
 
 	// Graceful shutdown
 	c := make(chan os.Signal)
