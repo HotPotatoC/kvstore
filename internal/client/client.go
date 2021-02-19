@@ -15,9 +15,8 @@ import (
 var log *zap.SugaredLogger
 
 type client struct {
-	comm    *comm.Comm
-	brStdin *bufio.Reader
-	brConn  *bufio.Reader
+	comm   *comm.Comm
+	reader *bufio.Reader
 }
 
 func init() {
@@ -31,8 +30,8 @@ func New(addr string) *client {
 	}
 
 	return &client{
-		comm:    comm,
-		brStdin: bufio.NewReader(os.Stdin),
+		comm:   comm,
+		reader: bufio.NewReader(os.Stdin),
 	}
 }
 
@@ -40,7 +39,7 @@ func (c *client) StartCLI() {
 	for {
 		fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
 
-		input, err := c.brStdin.ReadBytes('\n')
+		input, err := c.reader.ReadBytes('\n')
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
