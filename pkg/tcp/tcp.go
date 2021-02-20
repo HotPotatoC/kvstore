@@ -27,9 +27,9 @@ func init() {
 
 func New() *server {
 	return &server{
-		OnConnected:    func(_ net.Conn) { noop() },
-		OnDisconnected: func(_ net.Conn) { noop() },
-		OnMessage:      func(_ net.Conn, _ []byte) { noop() },
+		OnConnected:    func(_ net.Conn) { /** no-op by default */ },
+		OnDisconnected: func(_ net.Conn) { /** no-op by default */ },
+		OnMessage:      func(_ net.Conn, _ []byte) { /** no-op by default */ },
 	}
 }
 
@@ -97,6 +97,3 @@ func makeTCPListener(ip string, port int) net.Listener {
 
 	return listener
 }
-
-// No operation
-func noop() {}
