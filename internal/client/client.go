@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/server"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
@@ -44,6 +45,7 @@ func (c *client) StartCLI() {
 			log.Fatal(err)
 		}
 
+		t1 := time.Now()
 		err = c.comm.Send(input)
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
@@ -54,6 +56,8 @@ func (c *client) StartCLI() {
 			log.Fatal(err)
 		}
 
+		t2 := time.Now()
+		fmt.Printf("%fs\n", t2.Sub(t1).Seconds())
 		fmt.Println(string(msg))
 	}
 }
