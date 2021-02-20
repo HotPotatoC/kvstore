@@ -1,17 +1,26 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
 
-type delCommand struct{}
+	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+)
 
-func MakeDelCommand() Command {
-	return delCommand{}
+type delCommand struct {
+	db *hashtable.HashTable
+}
+
+func MakeDelCommand(db *hashtable.HashTable) Command {
+	return delCommand{
+		db: db,
+	}
 }
 
 func (c delCommand) String() string {
 	return "del"
 }
 
-func (c delCommand) Execute(args string) {
+func (c delCommand) Execute(args []string) []byte {
 	fmt.Printf("DelCommand called with: %s\n", args)
+	return []byte("")
 }

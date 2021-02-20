@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/cli"
+	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 	"go.uber.org/zap"
@@ -21,6 +21,7 @@ var log *zap.SugaredLogger
 
 type server struct {
 	conn net.Conn
+	db   *hashtable.HashTable
 }
 
 var (
@@ -32,7 +33,9 @@ func init() {
 }
 
 func New() *server {
-	return &server{}
+	return &server{
+		db: hashtable.NewHashTable(),
+	}
 }
 
 func (s *server) Start(host string, port int) {
@@ -85,14 +88,11 @@ func (s *server) onMessage(conn net.Conn, msg []byte) {
 	args := bytes.TrimSpace(
 		bytes.TrimPrefix(msg, cmd))
 
-	command := cli.GetCommand(string(cmd))
+	command := cli.GetCommand(s.db, string(cmd))
 	if command == nil {
 		conn.Write([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
 	} else {
-		t1 := time.Now()
-		command.Execute(string(args))
-		t2 := time.Now()
-		diff := t2.Sub(t1)
-		conn.Write([]byte(fmt.Sprintf("%s %fs\n", strings.ToUpper(command.String()), diff.Seconds())))
+		result := command.Execute(strings.Split(string(args), " "))
+		conn.Write([]byte(fmt.Sprintf("%s\n", result)))
 	}
 }

@@ -12,7 +12,7 @@ type HashTable struct {
 }
 
 // Dict represents a map
-type Dict map[int]interface{}
+type Dict map[int]string
 
 // NewHashTable returns a new Hash Table
 func NewHashTable() *HashTable {
@@ -20,7 +20,7 @@ func NewHashTable() *HashTable {
 }
 
 // Set inserts a new key-value pair item into the hash table
-func (ht *HashTable) Set(k string, v interface{}) {
+func (ht *HashTable) Set(k string, v string) {
 	ht.m.Lock()
 
 	if ht.table == nil {
@@ -39,7 +39,7 @@ func (ht *HashTable) Remove(k string) {
 }
 
 // Get returns the value of the given key
-func (ht *HashTable) Get(k string) interface{} {
+func (ht *HashTable) Get(k string) string {
 	ht.m.RLock()
 	defer ht.m.RUnlock()
 	return ht.lookup(k)
@@ -58,7 +58,7 @@ func (ht *HashTable) List() Dict {
 func (ht *HashTable) Exist(k string) bool {
 	ht.m.RLock()
 	defer ht.m.RUnlock()
-	return ht.lookup(k) != nil
+	return ht.lookup(k) != ""
 }
 
 // Size represents the size of the hash table
@@ -69,10 +69,10 @@ func (ht *HashTable) Size() int {
 }
 
 func (ht *HashTable) init() {
-	ht.table = make(map[int]interface{})
+	ht.table = make(map[int]string)
 }
 
-func (ht *HashTable) insert(k string, v interface{}) {
+func (ht *HashTable) insert(k string, v string) {
 	ht.table[ht.hashkey(k)] = v
 }
 
@@ -80,7 +80,7 @@ func (ht *HashTable) del(k string) {
 	delete(ht.table, ht.hashkey(k))
 }
 
-func (ht *HashTable) lookup(k string) interface{} {
+func (ht *HashTable) lookup(k string) string {
 	return ht.table[ht.hashkey(k)]
 }
 
