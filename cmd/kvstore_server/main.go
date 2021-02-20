@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/internal/server"
+	"github.com/HotPotatoC/kvstore/cmd/kvstore_server/internal/server"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"go.uber.org/zap"
 

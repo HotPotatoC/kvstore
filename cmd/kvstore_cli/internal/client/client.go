@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/internal/server"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"go.uber.org/zap"
@@ -27,7 +26,7 @@ func init() {
 func New(addr string) *client {
 	comm, err := comm.New(addr)
 	if err != nil {
-		log.Fatal(server.ErrConnectionRefused)
+		log.Fatal(err)
 	}
 
 	return &client{

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/internal/cli"
+	"github.com/HotPotatoC/kvstore/cmd/kvstore_server/internal/cli"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
