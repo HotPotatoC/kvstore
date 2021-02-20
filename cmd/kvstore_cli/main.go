@@ -1,9 +1,23 @@
 package main
 
-import "github.com/HotPotatoC/kvstore/internal/client"
+import (
+	"flag"
+
+	"github.com/HotPotatoC/kvstore/internal/client"
+)
+
+var (
+	addr = flag.String("address", "0.0.0.0:7275", "KVStore target server address")
+)
+
+func init() {
+	flag.StringVar(addr, "a", "0.0.0.0:7275", "KVStore target server address")
+}
 
 func main() {
-	client := client.New("0.0.0.0:7275")
+	flag.Parse()
+
+	client := client.New(*addr)
 
 	client.StartCLI()
 }
