@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
@@ -21,6 +22,13 @@ func (c listCommand) String() string {
 }
 
 func (c listCommand) Execute(args []string) []byte {
-	fmt.Printf("ListCommand called with: %s\n", args)
-	return []byte("")
+	var b bytes.Buffer
+	i := 1
+
+	for k, v := range c.db.List() {
+		b.WriteString(fmt.Sprintf("%d) [%d]: \"%s\"\n", i, k, v))
+		i++
+	}
+
+	return b.Bytes()
 }

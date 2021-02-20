@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
 
@@ -20,10 +22,11 @@ func (c getCommand) String() string {
 
 func (c getCommand) Execute(args []string) []byte {
 	key := args[0]
+
 	result := c.db.Get(key)
 	if result == "" {
 		return []byte("<nil>")
 	}
 
-	return []byte(c.db.Get(key))
+	return []byte(fmt.Sprintf(`"%s"`, c.db.Get(key)))
 }

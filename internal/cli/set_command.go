@@ -27,5 +27,5 @@ func (c setCommand) Execute(args []string) []byte {
 
 	c.db.Set(key, value)
 
-	return []byte("")
+	return []byte("OK")
 }
