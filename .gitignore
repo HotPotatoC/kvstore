@@ -1,0 +1,16 @@
+# IDE
+.vscode
+.idea
+
+# Binaries, plugins, libs
+.bin/*
+
+*.dll
+*.dylib
+*.exe
+*.exe~
+*.so
+
+# Testing
+*.test
+*.tmp

@@ -20,8 +20,10 @@ import (
 var log *zap.SugaredLogger
 
 type server struct {
-	conn net.Conn
-	db   *hashtable.HashTable
+	conn    net.Conn
+	db      *hashtable.HashTable
+	version string
+	build   string
 }
 
 var (
@@ -32,15 +34,17 @@ func init() {
 	log = logger.NewLogger()
 }
 
-func New() *server {
+func New(version, build string) *server {
 	return &server{
-		db: hashtable.NewHashTable(),
+		version: version,
+		build:   build,
+		db:      hashtable.NewHashTable(),
 	}
 }
 
 func (s *server) Start(host string, port int) {
 	log.Info("KVStore is starting...")
-	log.Infof("starting tcp server... pid=%d", os.Getpid())
+	log.Infof("starting tcp server... version=%s build=%s pid=%d", s.version, s.build, os.Getpid())
 	tcpServer := tcp.New()
 
 	tcpServer.OnConnected = s.onConnected
@@ -56,11 +60,11 @@ func (s *server) Start(host string, port int) {
 	|   <  \ V /\__ \ || (_) | | |  __/
 	|_|\_\  \_/ |___/\__\___/|_|  \___|
 
-	Started KVStore server
+	Started KVStore %s server
 	  Port: %d
 	  PID: %d
 
-`, port, os.Getpid())
+`, s.version, port, os.Getpid())
 	log.Info("Ready to accept connections.")
 
 	// Graceful shutdown

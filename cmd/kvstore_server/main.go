@@ -12,6 +12,9 @@ import (
 	_ "net/http/pprof"
 )
 
+var Version = "dev"
+var Build = "dev"
+
 var log *zap.SugaredLogger
 
 var (
@@ -33,7 +36,7 @@ func init() {
 func main() {
 	flag.Parse()
 
-	server := server.New()
+	server := server.New(Version, Build)
 
 	if *debug {
 		log.Info("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
