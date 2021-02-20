@@ -93,6 +93,6 @@ func (s *server) onMessage(conn net.Conn, msg []byte) {
 		command.Execute(string(args))
 		t2 := time.Now()
 		diff := t2.Sub(t1)
-		conn.Write([]byte(fmt.Sprintf("%s %fs\n", strings.ToUpper(string(cmd)), diff.Seconds())))
+		conn.Write([]byte(fmt.Sprintf("%s %fs\n", strings.ToUpper(command.String()), diff.Seconds())))
 	}
 }

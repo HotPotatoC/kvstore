@@ -1,6 +1,7 @@
 package cli
 
 type Command interface {
+	String() string
 	Execute(args string)
 }
 
