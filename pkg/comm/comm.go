@@ -26,10 +26,11 @@ func (c *Comm) Send(b []byte) (err error) {
 	return
 }
 
-func (c *Comm) Read() (buffer []byte, err error) {
+func (c *Comm) Read() (buffer []byte, n int, err error) {
 	buffer = make([]byte, 0)
 	reader := bufio.NewReader(c.connection)
 	buffer, err = reader.ReadBytes('\n')
+	n = len(buffer)
 	return
 }
 

@@ -51,7 +51,7 @@ func (c *client) StartCLI() {
 			log.Fatal(err)
 		}
 
-		msg, err := c.comm.Read()
+		msg, _, err := c.comm.Read()
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
