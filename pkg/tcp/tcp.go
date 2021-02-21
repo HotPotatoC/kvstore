@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"bufio"
 	"io"
 	"net"
 	"time"
@@ -67,8 +66,10 @@ func (s *server) handleConnection(conn net.Conn) {
 		log.Fatalf("failed setting connection read deadline: %v", err)
 	}
 
+	buffer := make([]byte, 2048)
+
 	for {
-		data, err := bufio.NewReader(conn).ReadBytes('\n')
+		n, err := conn.Read(buffer)
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
@@ -78,11 +79,11 @@ func (s *server) handleConnection(conn net.Conn) {
 			}
 		}
 
-		if data == nil {
+		if n == 0 {
 			return
 		}
 
-		s.OnMessage(conn, data)
+		s.OnMessage(conn, buffer)
 	}
 }
 

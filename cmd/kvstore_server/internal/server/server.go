@@ -10,7 +10,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/cmd/kvstore_server/internal/cli"
+	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
@@ -20,10 +21,9 @@ import (
 var log *zap.SugaredLogger
 
 type server struct {
-	conn    net.Conn
-	db      *hashtable.HashTable
 	version string
 	build   string
+	db      *hashtable.HashTable
 }
 
 var (
@@ -87,16 +87,19 @@ func (s *server) onDisconnected(conn net.Conn) {
 }
 
 func (s *server) onMessage(conn net.Conn, msg []byte) {
-	cmd := bytes.ToLower(
-		bytes.TrimSpace(bytes.Split(msg, []byte(" "))[0]))
-	args := bytes.TrimSpace(
-		bytes.TrimPrefix(msg, cmd))
+	buffer := bytes.NewBuffer(msg)
+	packet := new(packet.Packet)
 
-	command := cli.GetCommand(s.db, string(cmd))
+	err := packet.Decode(buffer)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	command := command.GetCommand(s.db, packet.Cmd)
 	if command == nil {
-		conn.Write([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+		conn.Write([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
 	} else {
-		result := command.Execute(strings.Split(string(args), " "))
+		result := command.Execute(strings.Split(string(packet.Args), " "))
 		conn.Write([]byte(fmt.Sprintf("%s\n", result)))
 	}
 }

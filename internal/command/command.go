@@ -1,25 +1,38 @@
-package cli
+package command
 
 import "github.com/HotPotatoC/kvstore/pkg/hashtable"
+
+type CommandOp int
+
+const (
+	SET CommandOp = 0x0 + iota
+	GET
+	DEL
+	LIST
+)
+
+func (c CommandOp) String() string {
+	return [...]string{"set", "get", "del", "list"}[c]
+}
 
 type Command interface {
 	String() string
 	Execute(args []string) []byte
 }
 
-func GetCommand(db *hashtable.HashTable, cmd string) Command {
+func GetCommand(db *hashtable.HashTable, cmd CommandOp) Command {
 	var command Command
 	switch cmd {
-	case "set":
+	case SET:
 		command = MakeSetCommand(db)
 		break
-	case "get":
+	case GET:
 		command = MakeGetCommand(db)
 		break
-	case "del":
+	case DEL:
 		command = MakeDelCommand(db)
 		break
-	case "list":
+	case LIST:
 		command = MakeListCommand(db)
 		break
 	default:

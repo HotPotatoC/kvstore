@@ -1,4 +1,4 @@
-package cli
+package command
 
 import (
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"

@@ -2,11 +2,14 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
+	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"go.uber.org/zap"
@@ -45,7 +48,7 @@ func (c *client) StartCLI() {
 		}
 
 		t1 := time.Now()
-		err = c.comm.Send(input)
+		err = c.comm.Send(c.handle(input))
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
@@ -59,4 +62,31 @@ func (c *client) StartCLI() {
 		fmt.Printf("%fs\n", t2.Sub(t1).Seconds())
 		fmt.Println(string(msg))
 	}
+}
+
+func (c *client) handle(data []byte) []byte {
+	cmd := bytes.ToLower(
+		bytes.TrimSpace(bytes.Split(data, []byte(" "))[0]))
+	args := bytes.TrimSpace(
+		bytes.TrimPrefix(data, cmd))
+
+	p := new(packet.Packet)
+
+	switch string(cmd) {
+	case "set":
+		p = packet.NewPacket(command.SET, args)
+	case "get":
+		p = packet.NewPacket(command.GET, args)
+	case "del":
+		p = packet.NewPacket(command.DEL, args)
+	case "list":
+		p = packet.NewPacket(command.LIST, args)
+	}
+
+	buffer, err := p.Encode()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return buffer.Bytes()
 }
