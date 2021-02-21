@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
 
@@ -20,7 +22,10 @@ func (c delCommand) String() string {
 
 func (c delCommand) Execute(args []string) []byte {
 	key := args[0]
+	if key == "" {
+		return []byte("Missing key")
+	}
 
-	c.db.Remove(key)
-	return []byte("OK")
+	count := c.db.Remove(key)
+	return []byte(fmt.Sprintf("%d", count))
 }

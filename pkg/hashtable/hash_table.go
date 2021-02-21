@@ -32,10 +32,12 @@ func (ht *HashTable) Set(k string, v string) {
 }
 
 // Remove deletes an item by the given key
-func (ht *HashTable) Remove(k string) {
+func (ht *HashTable) Remove(k string) int {
 	ht.m.Lock()
+	defer ht.m.Unlock()
+	initialSize := len(ht.table)
 	ht.del(k)
-	ht.m.Unlock()
+	return initialSize - len(ht.table)
 }
 
 // Get returns the value of the given key
@@ -77,6 +79,12 @@ func (ht *HashTable) insert(k string, v string) {
 }
 
 func (ht *HashTable) del(k string) {
+	if k == "*" {
+		for key := range ht.table {
+			delete(ht.table, key)
+		}
+		return
+	}
 	delete(ht.table, ht.hashkey(k))
 }
 

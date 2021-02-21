@@ -22,11 +22,14 @@ func (c getCommand) String() string {
 
 func (c getCommand) Execute(args []string) []byte {
 	key := args[0]
+	if key == "" {
+		return []byte("Missing key")
+	}
 
 	result := c.db.Get(key)
 	if result == "" {
 		return []byte("<nil>")
 	}
 
-	return []byte(fmt.Sprintf(`"%s"`, c.db.Get(key)))
+	return []byte(fmt.Sprintf(`"%s"`, result))
 }
