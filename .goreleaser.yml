@@ -2,7 +2,7 @@ env:
   - GO111MODULE=on
 before:
   hooks:
-    - go mod downloa
+    - go mod download
 builds:
   - main: ./cmd/kvstore_server/main.go
     id: "kvstore_server"
