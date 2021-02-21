@@ -1,7 +1,7 @@
 BINARY_DIR := .bin/
 
 APP_NAME=kvstore
-VERSION?=v0.0.1
+VERSION?=v0.0.3
 BUILD=$(shell git rev-parse HEAD)
 
 PLATFORMS=freebsd darwin linux windows
