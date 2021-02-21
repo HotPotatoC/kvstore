@@ -44,7 +44,8 @@ func New(version, build string) *server {
 
 func (s *server) Start(host string, port int) {
 	log.Info("KVStore is starting...")
-	log.Infof("starting tcp server... version=%s build=%s pid=%d", s.version, s.build, os.Getpid())
+	log.Infof("version=%s build=%s pid=%d", s.version, s.build, os.Getpid())
+	log.Info("starting tcp server...")
 	tcpServer := tcp.New()
 
 	tcpServer.OnConnected = s.onConnected

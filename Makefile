@@ -1,7 +1,7 @@
 BINARY_DIR := .bin/
 
 APP_NAME=kvstore
-VERSION?=v0.0.3
+VERSION?=v0.1.0
 BUILD=$(shell git rev-parse HEAD)
 
 PLATFORMS=freebsd darwin linux windows
@@ -32,22 +32,22 @@ install-deps: ## Install dependencies
 	@go mod download
 
 server: ## Compile the server
-	@go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_server cmd/$(APP_NAME)_server/main.go
+	@go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_server cmd/$(APP_NAME)_server/main.go
 
 cli: ## Compile the cli
-	@go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_cli cmd/$(APP_NAME)_cli/main.go
+	@go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_cli cmd/$(APP_NAME)_cli/main.go
 
 all-server: ## Cross-compile the server
 	@$(foreach GOOS, $(PLATFORMS),\
 		$(foreach GOARCH, $(ARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_server/main.go)))
+			go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_server/main.go)))
 
 all-cli: ## Cross-compile the cli
 	@$(foreach GOOS, $(PLATFORMS),\
 		$(foreach GOARCH, $(ARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_cli/main.go)))
+			go build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_cli/main.go)))
 
 all: ## Cross-compile all the commands
 	@echo ">> Building go files..."
