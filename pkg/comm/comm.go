@@ -1,7 +1,6 @@
 package comm
 
 import (
-	"bufio"
 	"net"
 	"time"
 )
@@ -27,10 +26,8 @@ func (c *Comm) Send(b []byte) (err error) {
 }
 
 func (c *Comm) Read() (buffer []byte, n int, err error) {
-	buffer = make([]byte, 0)
-	reader := bufio.NewReader(c.connection)
-	buffer, err = reader.ReadBytes('\n')
-	n = len(buffer)
+	buffer = make([]byte, 2048)
+	n, err = c.connection.Read(buffer)
 	return
 }
 
