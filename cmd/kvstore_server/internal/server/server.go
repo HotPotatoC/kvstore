@@ -93,7 +93,7 @@ func (s *server) onMessage(conn net.Conn, msg []byte) {
 
 	err := packet.Decode(buffer)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
 
 	command := command.GetCommand(s.db, packet.Cmd)
