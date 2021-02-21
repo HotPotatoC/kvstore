@@ -1,0 +1,80 @@
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod downloa
+builds:
+  - main: ./cmd/kvstore_server/main.go
+    id: "kvstore_server"
+    binary: kvstore_server
+    ldflags:
+      - -s -w -X 'main.Version=${.Version}' -X 'main.Build=${.Commit}'
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+      - freebsd
+      - netbsd
+      - openbsd
+      - dragonfly
+    goarch:
+      - 386
+      - arm
+      - arm64
+      - amd64
+    ignore:
+      - goos: darwin
+        goarch: 386
+
+  - main: ./cmd/kvstore_cli/main.go
+    id: "kvstore_cli"
+    binary: kvstore_cli
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+      - freebsd
+      - netbsd
+      - openbsd
+      - dragonfly
+    goarch:
+      - 386
+      - arm
+      - arm64
+      - amd64
+    ignore:
+      - goos: darwin
+        goarch: 386
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}-{{ .Arch }}"
+    replacements:
+      amd64: 64bit
+      386: 32bit
+      arm: ARM
+      arm64: ARM64
+      darwin: macOS
+      linux: Linux
+      windows: Windows
+      openbsd: OpenBSD
+      netbsd: NetBSD
+      freebsd: FreeBSD
+      dragonfly: DragonFlyBSD
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
