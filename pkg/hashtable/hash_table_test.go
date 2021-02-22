@@ -25,7 +25,6 @@ func TestPut(t *testing.T) {
 	if ht.Size() != 5 {
 		t.Errorf("Failed TestPut -> Expected Size: %d | Got: %d", 5, ht.Size())
 	}
-
 }
 
 func TestRemove(t *testing.T) {
@@ -51,6 +50,20 @@ func TestGet(t *testing.T) {
 func BenchmarkSet(b *testing.B) {
 	ht := hashtable.NewHashTable()
 	for i := 0; i < b.N; i++ {
-		ht.Set(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
+		ht.Set(fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i))
+	}
+}
+
+func BenchmarkDel(b *testing.B) {
+	ht := populate(b.N)
+	for i := 0; i < b.N; i++ {
+		ht.Remove(fmt.Sprintf("k%d", i))
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	ht := populate(b.N)
+	for i := 0; i < b.N; i++ {
+		ht.Get(fmt.Sprintf("k%d", i))
 	}
 }
