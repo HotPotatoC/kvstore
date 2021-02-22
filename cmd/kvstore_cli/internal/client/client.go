@@ -99,6 +99,8 @@ func (c *client) preprocess(data []byte) (*bytes.Buffer, error) {
 		if packet, err = c.list(args); err != nil {
 			return nil, err
 		}
+	default:
+		return nil, fmt.Errorf("Command '%s' does not exists", cmd)
 	}
 
 	buffer, err := packet.Encode()
