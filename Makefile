@@ -4,7 +4,7 @@ APP_NAME=kvstore
 VERSION?=v0.2.3
 BUILD=$(shell git rev-parse HEAD)
 
-PLATFORMS=freebsd darwin linux windows
+PLATFORMS=darwin linux windows freebsd netbsd openbsd dragonfly
 ARCHS=386 arm arm64 amd64
 
 LDFLAGS = -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${BUILD}'"
