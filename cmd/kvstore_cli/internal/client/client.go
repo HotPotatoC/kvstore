@@ -3,6 +3,7 @@ package client
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,6 +40,7 @@ func New(addr string) *client {
 }
 
 func (c *client) StartCLI() {
+start:
 	for {
 		fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
 
@@ -48,7 +50,13 @@ func (c *client) StartCLI() {
 		}
 
 		t1 := time.Now()
-		err = c.comm.Send(c.handle(input))
+		preprocessed, err := c.preprocess(input)
+		if err != nil {
+			log.Error(err)
+			continue start
+		}
+
+		err = c.comm.Send(preprocessed.Bytes())
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
@@ -64,29 +72,64 @@ func (c *client) StartCLI() {
 	}
 }
 
-func (c *client) handle(data []byte) []byte {
-	cmd := bytes.ToLower(
-		bytes.TrimSpace(bytes.Split(data, []byte(" "))[0]))
-	args := bytes.TrimSpace(
-		bytes.TrimPrefix(data, cmd))
+func (c *client) preprocess(data []byte) (*bytes.Buffer, error) {
+	var packet *packet.Packet
+	var err error
 
-	p := new(packet.Packet)
+	rawCmd := bytes.Split(data, []byte(" "))[0]
+	cmd := bytes.ToLower(
+		bytes.TrimSpace(rawCmd))
+	args := bytes.TrimSpace(
+		bytes.TrimPrefix(data, rawCmd))
 
 	switch string(cmd) {
-	case "set":
-		p = packet.NewPacket(command.SET, args)
-	case "get":
-		p = packet.NewPacket(command.GET, args)
-	case "del":
-		p = packet.NewPacket(command.DEL, args)
-	case "list":
-		p = packet.NewPacket(command.LIST, args)
+	case command.SET.String():
+		if packet, err = c.set(args); err != nil {
+			return nil, err
+		}
+	case command.GET.String():
+		if packet, err = c.get(args); err != nil {
+			return nil, err
+		}
+	case command.DEL.String():
+		if packet, err = c.del(args); err != nil {
+			return nil, err
+		}
+	case command.LIST.String():
+		if packet, err = c.list(args); err != nil {
+			return nil, err
+		}
 	}
 
-	buffer, err := p.Encode()
+	buffer, err := packet.Encode()
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed processing input: %v", err)
 	}
 
-	return buffer.Bytes()
+	return buffer, nil
+}
+
+func (c *client) set(args []byte) (*packet.Packet, error) {
+	if len(bytes.Split(args, []byte(" "))) < 2 {
+		return nil, errors.New("Missing key/value arguments")
+	}
+	return packet.NewPacket(command.SET, args), nil
+}
+
+func (c *client) get(args []byte) (*packet.Packet, error) {
+	if bytes.Compare(args, []byte("")) == 0 {
+		return nil, errors.New("Missing key argument")
+	}
+	return packet.NewPacket(command.GET, args), nil
+}
+
+func (c *client) del(args []byte) (*packet.Packet, error) {
+	if bytes.Compare(args, []byte("")) == 0 {
+		return nil, errors.New("Missing key argument")
+	}
+	return packet.NewPacket(command.DEL, args), nil
+}
+
+func (c *client) list(args []byte) (*packet.Packet, error) {
+	return packet.NewPacket(command.LIST, args), nil
 }

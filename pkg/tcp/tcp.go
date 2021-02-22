@@ -9,6 +9,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	MaxTCPBufferSize = 1024 * 36
+)
+
 var log *zap.SugaredLogger
 
 type server struct {
@@ -66,7 +70,7 @@ func (s *server) handleConnection(conn net.Conn) {
 		log.Fatalf("failed setting connection read deadline: %v", err)
 	}
 
-	buffer := make([]byte, 2048)
+	buffer := make([]byte, MaxTCPBufferSize)
 
 	for {
 		n, err := conn.Read(buffer)

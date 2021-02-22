@@ -3,6 +3,8 @@ package comm
 import (
 	"net"
 	"time"
+
+	"github.com/HotPotatoC/kvstore/pkg/tcp"
 )
 
 type Comm struct {
@@ -26,7 +28,7 @@ func (c *Comm) Send(b []byte) (err error) {
 }
 
 func (c *Comm) Read() (buffer []byte, n int, err error) {
-	buffer = make([]byte, 2048)
+	buffer = make([]byte, tcp.MaxTCPBufferSize)
 	n, err = c.connection.Read(buffer)
 	return
 }

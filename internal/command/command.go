@@ -5,7 +5,7 @@ import "github.com/HotPotatoC/kvstore/pkg/hashtable"
 type CommandOp int
 
 const (
-	SET CommandOp = 0x0 + iota
+	SET CommandOp = iota
 	GET
 	DEL
 	LIST
