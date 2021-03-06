@@ -14,7 +14,7 @@ const (
 
 // HashTable data structure
 type HashTable struct {
-	table []*Bucket
+	buckets []*Bucket
 	nSize int
 	m     sync.RWMutex
 }
@@ -33,15 +33,15 @@ type Entry struct {
 // NewHashTable returns a new Hash Table
 func NewHashTable() *HashTable {
 	return &HashTable{
-		table: make([]*Bucket, DefaultSize),
+		buckets: make([]*Bucket, DefaultSize),
 		nSize: 0,
 	}
 }
 
 // newHashTable returns a new Hash Table
-func newHashTable(tableSize int) *HashTable {
+func newHashTable(size int) *HashTable {
 	return &HashTable{
-		table: make([]*Bucket, DefaultSize),
+		buckets: make([]*Bucket, size),
 		nSize: 0,
 	}
 }
@@ -49,27 +49,14 @@ func newHashTable(tableSize int) *HashTable {
 // Set inserts a new key-value pair item into the hash table
 func (ht *HashTable) Set(k string, v string) {
 	ht.m.Lock()
+	defer ht.m.Unlock()
 
 	initialSize := ht.nSize
 	ht.insert(k, v)
-	count := initialSize - ht.nSize
+	count := ht.nSize - initialSize
 	if count > 0 {
 		ht.verifyLoadFactorExpansion()
 	}
-	ht.m.Unlock()
-}
-
-// Remove deletes an item by the given key
-func (ht *HashTable) Remove(k string) int {
-	ht.m.Lock()
-	defer ht.m.Unlock()
-	initialSize := ht.nSize
-	ht.del(k)
-	count := initialSize - ht.nSize
-	if count > 0 {
-		ht.verifyLoadFactorExpansion()
-	}
-	return count
 }
 
 // Get returns the value of the given key
@@ -85,12 +72,25 @@ func (ht *HashTable) Get(k string) string {
 	return result.Value
 }
 
+// Remove deletes an item by the given key
+func (ht *HashTable) Remove(k string) int {
+	ht.m.Lock()
+	defer ht.m.Unlock()
+	initialSize := ht.nSize
+	ht.del(k)
+	count := initialSize - ht.nSize
+	if count > 0 {
+		ht.verifyLoadFactorExpansion()
+	}
+	return count
+}
+
 // List returns the table
 func (ht *HashTable) List() []*Bucket {
 	ht.m.RLock()
 	defer ht.m.RUnlock()
 
-	return ht.table
+	return ht.buckets
 }
 
 // Exist returns true if an item with the given key exists
@@ -109,14 +109,14 @@ func (ht *HashTable) Size() int {
 }
 
 func (ht *HashTable) insert(k string, v string) {
-	index := ht.hashkey(k, len(ht.table))
+	index := ht.hashkey(k, len(ht.buckets))
 	entry := ht.newEntry(k, v)
 	if ht.lookup(k) == nil {
-		ht.table[index] = &Bucket{}
-		entry.Next = ht.table[index].Head
-		ht.table[index].Head = entry
+		ht.buckets[index] = &Bucket{}
+		entry.Next = ht.buckets[index].Head
+		ht.buckets[index].Head = entry
 	} else {
-		iterator := ht.table[index].Head
+		iterator := ht.buckets[index].Head
 		for {
 			if iterator.Next != nil {
 				data := iterator.Next
@@ -125,8 +125,8 @@ func (ht *HashTable) insert(k string, v string) {
 					break
 				}
 			} else {
-				entry.Next = ht.table[index].Head
-				ht.table[index].Head = entry
+				entry.Next = ht.buckets[index].Head
+				ht.buckets[index].Head = entry
 				break
 			}
 			iterator = iterator.Next
@@ -137,17 +137,17 @@ func (ht *HashTable) insert(k string, v string) {
 }
 
 func (ht *HashTable) del(k string) {
-	index := ht.hashkey(k, len(ht.table))
-	if ht.table[index] == nil {
+	index := ht.hashkey(k, len(ht.buckets))
+	if ht.buckets[index] == nil || ht.buckets[index].Head == nil {
 		return
 	}
-	if ht.table[index].Head.Key == k {
-		ht.table[index].Head = ht.table[index].Head.Next
+	if ht.buckets[index].Head.Key == k {
+		ht.buckets[index].Head = ht.buckets[index].Head.Next
 		ht.nSize--
 		return
 	}
 
-	iterator := ht.table[index].Head
+	iterator := ht.buckets[index].Head
 	for iterator.Next != nil {
 		if iterator.Next.Key == k {
 			iterator.Next = iterator.Next.Next
@@ -159,48 +159,48 @@ func (ht *HashTable) del(k string) {
 }
 
 func (ht *HashTable) lookup(k string) *Entry {
-	index := ht.hashkey(k, len(ht.table))
-	if ht.table[index] == nil {
+	index := ht.hashkey(k, len(ht.buckets))
+	if ht.buckets[index] == nil {
 		return nil
 	}
-	iterator := ht.table[index].Head
+	iterator := ht.buckets[index].Head
 	for iterator != nil {
 		if iterator.Key == k {
 			return iterator
 		}
-		iterator = ht.table[index].Head.Next
+		iterator = ht.buckets[index].Head.Next
 	}
 	return nil
 }
 
 func (ht *HashTable) loadFactor() float64 {
-	return float64(ht.nSize) / float64(ht.nSize)
+	return float64(ht.nSize) / float64(len(ht.buckets))
 }
 
 func (ht *HashTable) verifyLoadFactorExpansion() {
 	if ht.nSize == 0 {
 		return
-	} else {
-		lf := ht.loadFactor()
-		if lf > maxLoadFactor {
-			newTable := newHashTable(ht.nSize * 2)
-			for _, record := range ht.table {
-				if record != nil && record.Head != nil {
-					newTable.Set(record.Head.Key, record.Head.Value)
-					record.Head = record.Head.Next
-				}
+	}
+
+	lf := ht.loadFactor()
+	if lf > maxLoadFactor {
+		newTable := newHashTable(ht.nSize * 2)
+		for _, bucket := range ht.buckets {
+			for bucket != nil && bucket.Head != nil {
+				newTable.insert(bucket.Head.Key, bucket.Head.Value)
+				bucket.Head = bucket.Head.Next
 			}
-			ht.table = newTable.table
-		} else if lf < minLoadFactor {
-			newTable := newHashTable(len(ht.table) / 2)
-			for _, record := range ht.table {
-				if record != nil && record.Head != nil {
-					newTable.Set(record.Head.Key, record.Head.Value)
-					record.Head = record.Head.Next
-				}
-			}
-			ht.table = newTable.table
 		}
+		ht.buckets = newTable.buckets
+	} else if lf < minLoadFactor {
+		newTable := newHashTable(len(ht.buckets) / 2)
+		for _, bucket := range ht.buckets {
+			for bucket != nil && bucket.Head != nil {
+				newTable.insert(bucket.Head.Key, bucket.Head.Value)
+				bucket.Head = bucket.Head.Next
+			}
+		}
+		ht.buckets = newTable.buckets
 	}
 }
 
@@ -208,6 +208,7 @@ func (ht *HashTable) newEntry(key, value string) *Entry {
 	return &Entry{
 		Key:   key,
 		Value: value,
+		Next:  nil,
 	}
 }
 func (ht *HashTable) hashkey(k string, size int) int {
