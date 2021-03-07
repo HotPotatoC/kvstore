@@ -38,7 +38,7 @@ func New(version, build string) *server {
 	return &server{
 		version: version,
 		build:   build,
-		db:      hashtable.NewHashTable(),
+		db:      hashtable.New(),
 	}
 }
 

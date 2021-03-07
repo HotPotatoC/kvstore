@@ -23,11 +23,11 @@ func (c listCommand) String() string {
 
 func (c listCommand) Execute(args []string) []byte {
 	var b bytes.Buffer
-	i := 1
-
-	for k, v := range c.db.List() {
-		b.WriteString(fmt.Sprintf("%d) [%d]: \"%s\"\n", i, k, v))
-		i++
+	b.WriteString(fmt.Sprintf("%d items\n", c.db.Size()))
+	for _, bucket := range c.db.List() {
+		if bucket != nil && bucket.Head != nil {
+			b.WriteString(fmt.Sprintf("%s -> \"%s\"\n", bucket.Head.Key, bucket.Head.Value))
+		}
 	}
 
 	return b.Bytes()
