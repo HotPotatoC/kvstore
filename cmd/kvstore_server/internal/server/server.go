@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
@@ -24,6 +25,7 @@ type server struct {
 	version string
 	build   string
 	db      *hashtable.HashTable
+	clients uint64
 }
 
 var (
@@ -39,6 +41,7 @@ func New(version, build string) *server {
 		version: version,
 		build:   build,
 		db:      hashtable.New(),
+		clients: 0,
 	}
 }
 
@@ -80,11 +83,13 @@ func (s *server) Start(host string, port int) {
 }
 
 func (s *server) onConnected(conn net.Conn) {
-	log.Infof("Connected: %s", conn.RemoteAddr().String())
+	// Increment connected clients
+	atomic.AddUint64(&s.clients, 1)
 }
 
 func (s *server) onDisconnected(conn net.Conn) {
-	log.Infof("%s disconnected", conn.RemoteAddr().String())
+	// Decrement connected clients
+	atomic.AddUint64(&s.clients, ^uint64(0))
 }
 
 func (s *server) onMessage(conn net.Conn, msg []byte) {
@@ -96,7 +101,7 @@ func (s *server) onMessage(conn net.Conn, msg []byte) {
 		log.Error(err)
 	}
 
-	command := command.GetCommand(s.db, packet.Cmd)
+	command := command.New(s.db, packet.Cmd)
 	if command == nil {
 		conn.Write([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
 	} else {

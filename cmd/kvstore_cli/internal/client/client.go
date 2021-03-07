@@ -99,6 +99,10 @@ func (c *client) preprocess(data []byte) (*bytes.Buffer, error) {
 		if packet, err = c.list(args); err != nil {
 			return nil, err
 		}
+	case command.KEYS.String():
+		if packet, err = c.keys(args); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("Command '%s' does not exists", cmd)
 	}
@@ -134,4 +138,8 @@ func (c *client) del(args []byte) (*packet.Packet, error) {
 
 func (c *client) list(args []byte) (*packet.Packet, error) {
 	return packet.NewPacket(command.LIST, args), nil
+}
+
+func (c *client) keys(args []byte) (*packet.Packet, error) {
+	return packet.NewPacket(command.KEYS, args), nil
 }

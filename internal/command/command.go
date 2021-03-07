@@ -9,10 +9,11 @@ const (
 	GET
 	DEL
 	LIST
+	KEYS
 )
 
 func (c CommandOp) String() string {
-	return [...]string{"set", "get", "del", "list"}[c]
+	return [...]string{"set", "get", "del", "list", "keys"}[c]
 }
 
 type Command interface {
@@ -20,7 +21,7 @@ type Command interface {
 	Execute(args []string) []byte
 }
 
-func GetCommand(db *hashtable.HashTable, cmd CommandOp) Command {
+func New(db *hashtable.HashTable, cmd CommandOp) Command {
 	var command Command
 	switch cmd {
 	case SET:
@@ -34,6 +35,9 @@ func GetCommand(db *hashtable.HashTable, cmd CommandOp) Command {
 		break
 	case LIST:
 		command = makeListCommand(db)
+		break
+	case KEYS:
+		command = makeKeysCommand(db)
 		break
 	default:
 		command = nil
