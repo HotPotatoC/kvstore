@@ -1,8 +1,9 @@
 package hashtable
 
 import (
-	"hash/fnv"
 	"sync"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -15,8 +16,8 @@ const (
 // HashTable data structure
 type HashTable struct {
 	buckets []*Bucket
-	nSize int
-	m     sync.RWMutex
+	nSize   int
+	m       sync.RWMutex
 }
 
 // Bucket represents the hash table bucket
@@ -30,11 +31,11 @@ type Entry struct {
 	Next  *Entry
 }
 
-// NewHashTable returns a new Hash Table
-func NewHashTable() *HashTable {
+// New returns a new Hash Table
+func New() *HashTable {
 	return &HashTable{
 		buckets: make([]*Bucket, DefaultSize),
-		nSize: 0,
+		nSize:   0,
 	}
 }
 
@@ -42,7 +43,7 @@ func NewHashTable() *HashTable {
 func newHashTable(size int) *HashTable {
 	return &HashTable{
 		buckets: make([]*Bucket, size),
-		nSize: 0,
+		nSize:   0,
 	}
 }
 
@@ -111,7 +112,7 @@ func (ht *HashTable) Size() int {
 func (ht *HashTable) insert(k string, v string) {
 	index := ht.hashkey(k, len(ht.buckets))
 	entry := ht.newEntry(k, v)
-	if ht.lookup(k) == nil {
+	if ht.buckets[index] == nil {
 		ht.buckets[index] = &Bucket{}
 		entry.Next = ht.buckets[index].Head
 		ht.buckets[index].Head = entry
@@ -138,9 +139,11 @@ func (ht *HashTable) insert(k string, v string) {
 
 func (ht *HashTable) del(k string) {
 	index := ht.hashkey(k, len(ht.buckets))
+
 	if ht.buckets[index] == nil || ht.buckets[index].Head == nil {
 		return
 	}
+
 	if ht.buckets[index].Head.Key == k {
 		ht.buckets[index].Head = ht.buckets[index].Head.Next
 		ht.nSize--
@@ -168,7 +171,7 @@ func (ht *HashTable) lookup(k string) *Entry {
 		if iterator.Key == k {
 			return iterator
 		}
-		iterator = ht.buckets[index].Head.Next
+		iterator = iterator.Next
 	}
 	return nil
 }
@@ -211,8 +214,7 @@ func (ht *HashTable) newEntry(key, value string) *Entry {
 		Next:  nil,
 	}
 }
-func (ht *HashTable) hashkey(k string, size int) int {
-	h32 := fnv.New32a()
-	h32.Write([]byte(k))
-	return int(h32.Sum32()) % size
+
+func (ht *HashTable) hashkey(key string, size int) uint64 {
+	return xxhash.Sum64([]byte(key)) % uint64(size)
 }

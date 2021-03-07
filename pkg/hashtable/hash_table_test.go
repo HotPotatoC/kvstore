@@ -8,11 +8,39 @@ import (
 )
 
 func populate(n int) *hashtable.HashTable {
-	ht := hashtable.NewHashTable()
+	ht := hashtable.New()
 	for i := 0; i < n; i++ {
 		ht.Set(fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i))
 	}
 	return ht
+}
+
+func TestPopulate_100(t *testing.T) {
+	ht := populate(100)
+	if ht.Size() != 100 {
+		t.Errorf("Failed TestPopulate100 -> Expected Size: %d | Got: %d", 100, ht.Size())
+	}
+}
+
+func TestPopulate_1000(t *testing.T) {
+	ht := populate(1000)
+	if ht.Size() != 1000 {
+		t.Errorf("Failed TestPopulate100 -> Expected Size: %d | Got: %d", 1000, ht.Size())
+	}
+}
+
+func TestPopulate_10000(t *testing.T) {
+	ht := populate(10000)
+	if ht.Size() != 10000 {
+		t.Errorf("Failed TestPopulate10000 -> Expected Size: %d | Got: %d", 10000, ht.Size())
+	}
+}
+
+func TestPopulate_100000(t *testing.T) {
+	ht := populate(100000)
+	if ht.Size() != 100000 {
+		t.Errorf("Failed TestPopulate100000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
 }
 
 func TestPut(t *testing.T) {
@@ -48,7 +76,7 @@ func TestGet(t *testing.T) {
 }
 
 func BenchmarkSet(b *testing.B) {
-	ht := hashtable.NewHashTable()
+	ht := hashtable.New()
 	for i := 0; i < b.N; i++ {
 		ht.Set(fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i))
 	}
