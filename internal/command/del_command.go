@@ -10,7 +10,7 @@ type delCommand struct {
 	db *hashtable.HashTable
 }
 
-func MakeDelCommand(db *hashtable.HashTable) Command {
+func makeDelCommand(db *hashtable.HashTable) Command {
 	return delCommand{
 		db: db,
 	}

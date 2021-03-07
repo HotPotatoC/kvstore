@@ -10,7 +10,7 @@ type getCommand struct {
 	db *hashtable.HashTable
 }
 
-func MakeGetCommand(db *hashtable.HashTable) Command {
+func makeGetCommand(db *hashtable.HashTable) Command {
 	return getCommand{
 		db: db,
 	}

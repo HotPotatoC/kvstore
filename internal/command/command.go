@@ -24,16 +24,16 @@ func GetCommand(db *hashtable.HashTable, cmd CommandOp) Command {
 	var command Command
 	switch cmd {
 	case SET:
-		command = MakeSetCommand(db)
+		command = makeSetCommand(db)
 		break
 	case GET:
-		command = MakeGetCommand(db)
+		command = makeGetCommand(db)
 		break
 	case DEL:
-		command = MakeDelCommand(db)
+		command = makeDelCommand(db)
 		break
 	case LIST:
-		command = MakeListCommand(db)
+		command = makeListCommand(db)
 		break
 	default:
 		command = nil

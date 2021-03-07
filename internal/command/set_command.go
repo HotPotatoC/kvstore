@@ -8,7 +8,7 @@ type setCommand struct {
 	db *hashtable.HashTable
 }
 
-func MakeSetCommand(db *hashtable.HashTable) Command {
+func makeSetCommand(db *hashtable.HashTable) Command {
 	return setCommand{
 		db: db,
 	}

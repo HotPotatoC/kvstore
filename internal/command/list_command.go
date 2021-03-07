@@ -11,7 +11,7 @@ type listCommand struct {
 	db *hashtable.HashTable
 }
 
-func MakeListCommand(db *hashtable.HashTable) Command {
+func makeListCommand(db *hashtable.HashTable) Command {
 	return listCommand{
 		db: db,
 	}
