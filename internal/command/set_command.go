@@ -1,6 +1,8 @@
 package command
 
 import (
+	"strings"
+
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
 
@@ -23,7 +25,7 @@ func (c setCommand) Execute(args []string) []byte {
 		return []byte("Missing key/value arguments")
 	}
 	key := args[0]
-	value := args[1]
+	value := strings.Join(args[1:], " ")
 
 	c.db.Set(key, value)
 
