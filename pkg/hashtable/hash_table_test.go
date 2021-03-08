@@ -10,7 +10,7 @@ import (
 func populate(n int) *hashtable.HashTable {
 	ht := hashtable.New()
 	for i := 0; i < n; i++ {
-		ht.Set(fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i))
+		ht.Set(fmt.Sprintf("k%d", i+1), fmt.Sprintf("v%d", i+1))
 	}
 	return ht
 }
@@ -75,6 +75,20 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestIter(t *testing.T) {
+	ht := populate(5)
+
+	for bucket := range ht.Iter() {
+		t.Log(bucket.Key)
+		t.Log(bucket.Value)
+		if bucket.Next != nil {
+			bucket = bucket.Next
+			t.Log(bucket.Key)
+			t.Log(bucket.Value)
+		}
+	}
+}
+
 func BenchmarkSet(b *testing.B) {
 	ht := hashtable.New()
 	for i := 0; i < b.N; i++ {
@@ -93,5 +107,14 @@ func BenchmarkGet(b *testing.B) {
 	ht := populate(b.N)
 	for i := 0; i < b.N; i++ {
 		ht.Get(fmt.Sprintf("k%d", i))
+	}
+}
+
+func BenchmarkIter(b *testing.B) {
+	ht := populate(b.N)
+	for bucket := range ht.Iter() {
+		if !ht.Exist(bucket.Key) {
+			b.Errorf("Iter benchmark failed, key does not exists")
+		}
 	}
 }

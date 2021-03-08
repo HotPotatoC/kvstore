@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
@@ -22,10 +23,14 @@ func (c keysCommand) String() string {
 
 func (c keysCommand) Execute(args []string) []byte {
 	var b bytes.Buffer
-	for _, bucket := range c.db.List() {
-		if bucket != nil && bucket.Head != nil {
-			b.WriteString(bucket.Head.Key)
+	idx := 1
+	for entry := range c.db.Iter() {
+		for entry != nil {
+			b.WriteString(fmt.Sprintf("%d) %s", idx, entry.Key))
 			b.WriteString("\n")
+
+			entry = entry.Next
+			idx++
 		}
 	}
 

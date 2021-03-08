@@ -94,6 +94,22 @@ func (ht *HashTable) List() []*Bucket {
 	return ht.buckets
 }
 
+// Iter represents an iterator for the hashtable
+func (ht *HashTable) Iter() <-chan *Entry {
+	ht.m.RLock()
+	defer ht.m.RUnlock()
+	ch := make(chan *Entry, 0)
+	go func() {
+		defer close(ch)
+		for _, bucket := range ht.buckets {
+			if bucket != nil {
+				ch <- bucket.Head
+			}
+		}
+	}()
+	return ch
+}
+
 // Exist returns true if an item with the given key exists
 // otherwise returns false
 func (ht *HashTable) Exist(k string) bool {
