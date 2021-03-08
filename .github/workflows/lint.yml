@@ -1,0 +1,30 @@
+name: Lint
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+
+      - name: checkout
+        uses: actions/checkout@v1
+
+      - name: vet
+        run: make vet
+
+      - name: golint
+        run: |
+          go env
+          go install golang.org/x/lint/golint
+          golint ./...
