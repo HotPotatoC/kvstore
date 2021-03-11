@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -21,23 +20,21 @@ import (
 
 var log *zap.SugaredLogger
 
-type server struct {
+// Server represents the database server
+type Server struct {
 	version string
 	build   string
 	db      *hashtable.HashTable
 	clients uint64
 }
 
-var (
-	ErrConnectionRefused = errors.New("Connection refused")
-)
-
 func init() {
 	log = logger.NewLogger()
 }
 
-func New(version, build string) *server {
-	return &server{
+// New creates a new kvstore server
+func New(version, build string) *Server {
+	return &Server{
 		version: version,
 		build:   build,
 		db:      hashtable.New(),
@@ -45,7 +42,8 @@ func New(version, build string) *server {
 	}
 }
 
-func (s *server) Start(host string, port int) {
+// Start runs the server
+func (s *Server) Start(host string, port int) {
 	log.Info("KVStore is starting...")
 	log.Infof("version=%s build=%s pid=%d", s.version, s.build, os.Getpid())
 	log.Info("starting tcp server...")
@@ -82,17 +80,17 @@ func (s *server) Start(host string, port int) {
 	log.Info("Goodbye 👋")
 }
 
-func (s *server) onConnected(conn net.Conn) {
+func (s *Server) onConnected(conn net.Conn) {
 	// Increment connected clients
 	atomic.AddUint64(&s.clients, 1)
 }
 
-func (s *server) onDisconnected(conn net.Conn) {
+func (s *Server) onDisconnected(conn net.Conn) {
 	// Decrement connected clients
 	atomic.AddUint64(&s.clients, ^uint64(0))
 }
 
-func (s *server) onMessage(conn net.Conn, msg []byte) {
+func (s *Server) onMessage(conn net.Conn, msg []byte) {
 	buffer := bytes.NewBuffer(msg)
 	packet := new(packet.Packet)
 

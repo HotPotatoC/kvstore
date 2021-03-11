@@ -10,12 +10,14 @@ import (
 )
 
 const (
+	// MaxTCPBufferSize is the maximum buffer size (36kb)
 	MaxTCPBufferSize = 1024 * 36
 )
 
 var log *zap.SugaredLogger
 
-type server struct {
+// Server represents a tcp server
+type Server struct {
 	listener net.Listener
 
 	// Callbacks
@@ -28,26 +30,29 @@ func init() {
 	log = logger.NewLogger()
 }
 
-func New() *server {
-	return &server{
+// New creates a new tcp server
+func New() *Server {
+	return &Server{
 		OnConnected:    func(_ net.Conn) { /** no-op by default */ },
 		OnDisconnected: func(_ net.Conn) { /** no-op by default */ },
 		OnMessage:      func(_ net.Conn, _ []byte) { /** no-op by default */ },
 	}
 }
 
-func (s *server) Listen(host string, port int) {
+// Listen listens to the given address
+func (s *Server) Listen(host string, port int) {
 	server := makeTCPListener(host, port)
 	s.listener = server
 
 	go s.acceptConnections()
 }
 
-func (s *server) Stop() {
+// Stop closes the tcp server
+func (s *Server) Stop() {
 	s.listener.Close()
 }
 
-func (s *server) acceptConnections() {
+func (s *Server) acceptConnections() {
 	// Handles multiple client connections by spawning a goroutine for each client
 	for {
 		conn, err := s.listener.Accept()
@@ -64,7 +69,7 @@ func (s *server) acceptConnections() {
 	}
 }
 
-func (s *server) handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(conn net.Conn) {
 	defer s.OnDisconnected(conn)
 	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Hour)); err != nil {
 		log.Fatalf("failed setting connection read deadline: %v", err)

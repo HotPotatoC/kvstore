@@ -12,7 +12,9 @@ import (
 	_ "net/http/pprof"
 )
 
+// Version of the server
 var Version = "dev"
+// Build of the server
 var Build = "dev"
 
 var log *zap.SugaredLogger

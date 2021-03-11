@@ -18,7 +18,8 @@ import (
 
 var log *zap.SugaredLogger
 
-type client struct {
+// CLI represents the cli client
+type CLI struct {
 	comm   *comm.Comm
 	reader *bufio.Reader
 }
@@ -27,19 +28,21 @@ func init() {
 	log = logger.NewLogger()
 }
 
-func New(addr string) *client {
+// New creates a new CLI client
+func New(addr string) *CLI {
 	comm, err := comm.New(addr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return &client{
+	return &CLI{
 		comm:   comm,
 		reader: bufio.NewReader(os.Stdin),
 	}
 }
 
-func (c *client) StartCLI() {
+// Start runs the CLI client
+func (c *CLI) Start() {
 start:
 	for {
 		fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
@@ -72,7 +75,7 @@ start:
 	}
 }
 
-func (c *client) preprocess(data []byte) (*bytes.Buffer, error) {
+func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 	var packet *packet.Packet
 	var err error
 
@@ -115,31 +118,31 @@ func (c *client) preprocess(data []byte) (*bytes.Buffer, error) {
 	return buffer, nil
 }
 
-func (c *client) set(args []byte) (*packet.Packet, error) {
+func (c *CLI) set(args []byte) (*packet.Packet, error) {
 	if len(bytes.Split(args, []byte(" "))) < 2 {
 		return nil, errors.New("Missing key/value arguments")
 	}
 	return packet.NewPacket(command.SET, args), nil
 }
 
-func (c *client) get(args []byte) (*packet.Packet, error) {
+func (c *CLI) get(args []byte) (*packet.Packet, error) {
 	if bytes.Compare(args, []byte("")) == 0 {
 		return nil, errors.New("Missing key argument")
 	}
 	return packet.NewPacket(command.GET, args), nil
 }
 
-func (c *client) del(args []byte) (*packet.Packet, error) {
+func (c *CLI) del(args []byte) (*packet.Packet, error) {
 	if bytes.Compare(args, []byte("")) == 0 {
 		return nil, errors.New("Missing key argument")
 	}
 	return packet.NewPacket(command.DEL, args), nil
 }
 
-func (c *client) list(args []byte) (*packet.Packet, error) {
+func (c *CLI) list(args []byte) (*packet.Packet, error) {
 	return packet.NewPacket(command.LIST, args), nil
 }
 
-func (c *client) keys(args []byte) (*packet.Packet, error) {
+func (c *CLI) keys(args []byte) (*packet.Packet, error) {
 	return packet.NewPacket(command.KEYS, args), nil
 }

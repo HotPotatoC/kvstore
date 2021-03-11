@@ -25,6 +25,7 @@ type Bucket struct {
 	Head *Entry
 }
 
+// Entry represents an entry inside the bucket
 type Entry struct {
 	Key   string
 	Value string

@@ -8,18 +8,21 @@ import (
 	"github.com/HotPotatoC/kvstore/internal/command"
 )
 
+// Packet represents the tcp payload with the command operation and it's arguments
 type Packet struct {
-	Cmd  command.CommandOp
+	Cmd  command.Op
 	Args []byte
 }
 
-func NewPacket(cmd command.CommandOp, args []byte) *Packet {
+// NewPacket creates a new packet
+func NewPacket(cmd command.Op, args []byte) *Packet {
 	return &Packet{
 		Cmd:  cmd,
 		Args: args,
 	}
 }
 
+// Encode encodes the packet
 func (p *Packet) Encode() (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 
@@ -31,6 +34,7 @@ func (p *Packet) Encode() (*bytes.Buffer, error) {
 	return buf, nil
 }
 
+// Decode decodes the packet
 func (p *Packet) Decode(buffer *bytes.Buffer) error {
 	err := gob.NewDecoder(buffer).Decode(p)
 	if err != nil && err != io.EOF {

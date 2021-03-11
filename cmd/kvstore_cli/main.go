@@ -17,7 +17,7 @@ func init() {
 func main() {
 	flag.Parse()
 
-	client := client.New(*addr)
+	cli := client.New(*addr)
 
-	client.StartCLI()
+	cli.Start()
 }

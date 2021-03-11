@@ -2,26 +2,34 @@ package command
 
 import "github.com/HotPotatoC/kvstore/pkg/hashtable"
 
-type CommandOp int
+// Op represents the command type
+type Op int
 
 const (
-	SET CommandOp = iota
+	// SET inserts a new entry into the database
+	SET Op = iota
+	// GET returns the data in the database with the matching key
 	GET
+	// DEL remove an entry in the database with the matching key
 	DEL
+	// LIST displays all the saved data in the database
 	LIST
+	// KEYS displays all the saved keys in the database
 	KEYS
 )
 
-func (c CommandOp) String() string {
+func (c Op) String() string {
 	return [...]string{"set", "get", "del", "list", "keys"}[c]
 }
 
+// Command is the set of methods for a commmand
 type Command interface {
 	String() string
 	Execute(args []string) []byte
 }
 
-func New(db *hashtable.HashTable, cmd CommandOp) Command {
+// New constructs the given command operation
+func New(db *hashtable.HashTable, cmd Op) Command {
 	var command Command
 	switch cmd {
 	case SET:

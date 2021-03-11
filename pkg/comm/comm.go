@@ -7,10 +7,12 @@ import (
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 )
 
+// Comm is the basic tcp communication
 type Comm struct {
 	connection net.Conn
 }
 
+// New creates a new tcp comm
 func New(addr string) (*Comm, error) {
 	conn, err := newConnection(addr, time.Second*30)
 	return &Comm{
@@ -18,15 +20,18 @@ func New(addr string) (*Comm, error) {
 	}, err
 }
 
+// Connection returns the connection
 func (c *Comm) Connection() net.Conn {
 	return c.connection
 }
 
+// Send writes data to the connection
 func (c *Comm) Send(b []byte) (err error) {
 	_, err = c.connection.Write(b)
 	return
 }
 
+// Read reads data from the connection
 func (c *Comm) Read() (buffer []byte, n int, err error) {
 	buffer = make([]byte, tcp.MaxTCPBufferSize)
 	n, err = c.connection.Read(buffer)
