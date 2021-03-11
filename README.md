@@ -10,7 +10,7 @@ This project is not targeted for production use.
 
 # Installation
 
-You can install the binaries in the [releases](github.com/HotPotatoC/kvstore/releases) tab. Alternatively, to get the latest version of kvstore run:
+You can install the binaries in the [releases](https://github.com/HotPotatoC/kvstore/releases) tab. Alternatively, to get the latest version of kvstore run:
 
 ```
 ❯ go get -u github.com/HotPotatoC/kvstore
