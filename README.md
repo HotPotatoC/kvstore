@@ -51,13 +51,13 @@ To interact with the server, on another terminal run the `kvstore_cli` command
 
 # Command Table
 
-| Command             | Description                                                                    |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `SET [key] [value]` | Inserts a new entry into the database                                          |
-| `GET [key]`         | Returns the data in the database with the matching key                         |
-| `DEL [key]`         | Remove an entry in the database with the matching key                          |
-| `LIST`              | Displays all the saved data in the database with the format `[key] -> [value]` |
-| `KEYS`              | Displays all the saved keys in the database                                    |
+| Command (Case insensitive) | Description                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| SET [key] [value]          | Inserts a new entry into the database                                          |
+| GET [key]                  | Returns the data in the database with the matching key                         |
+| DEL [key]                  | Remove an entry in the database with the matching key                          |
+| LIST                       | Displays all the saved data in the database with the format `[key] -> [value]` |
+| KEYS                       | Displays all the saved keys in the database                                    |
 
 # Contributing
 
