@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	addr = flag.String("address", "0.0.0.0:7275", "KVStore target server address")
+	addr = flag.String("address", "127.0.0.1:7275", "KVStore target server address")
 )
 
 func init() {
-	flag.StringVar(addr, "a", "0.0.0.0:7275", "KVStore target server address")
+	flag.StringVar(addr, "a", "127.0.0.1:7275", "KVStore target server address")
 }
 
 func main() {
