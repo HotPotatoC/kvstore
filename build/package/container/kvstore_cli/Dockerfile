@@ -1,0 +1,36 @@
+FROM golang:alpine
+
+ARG VERSION=unspecified
+ARG GIT_COMMIT=unspecified
+LABEL git_commit=$GIT_COMMIT
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+RUN mkdir -p /go/src/github.com/HotPotatoC/kvstore
+
+ADD go.mod /go/src/github.com/HotPotatoC/kvstore
+ADD go.sum /go/src/github.com/HotPotatoC/kvstore
+
+WORKDIR /go/src/github.com/HotPotatoC/kvstore
+
+RUN go mod download
+
+COPY . .
+
+RUN mkdir .bin
+
+RUN go build -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${GIT_COMMIT}'" -v -o \
+    .bin/kvstore_cli cmd/kvstore_cli/main.go
+
+WORKDIR /go/bin
+
+ENV PATH=/go/bin:$PATH
+
+RUN cp -a /go/src/github.com/HotPotatoC/kvstore/.bin/. /go/bin
+
+EXPOSE 7275
+
+CMD [ "kvstore_cli" ]

@@ -1,0 +1,7 @@
+.bin
+.git
+.github
+
+.goreleaser.yml
+LICENSE
+README.md
