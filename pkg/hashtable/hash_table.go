@@ -189,8 +189,8 @@ func (ht *HashTable) iterate(ch chan<- *Entry) {
 	close(ch)
 }
 
-func (ht *HashTable) loadFactor() float64 {
-	return float64(ht.nSize) / float64(len(ht.buckets))
+func (ht *HashTable) loadFactor() float32 {
+	return float32(ht.nSize) / float32(len(ht.buckets))
 }
 
 func (ht *HashTable) verifyLoadFactor() {
