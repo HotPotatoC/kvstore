@@ -78,13 +78,12 @@ func TestGet(t *testing.T) {
 func TestIter(t *testing.T) {
 	ht := populate(5)
 
-	for bucket := range ht.Iter() {
-		t.Log(bucket.Key)
-		t.Log(bucket.Value)
-		if bucket.Next != nil {
-			bucket = bucket.Next
-			t.Log(bucket.Key)
-			t.Log(bucket.Value)
-		}
+	kv := make([]*hashtable.Entry, 0)
+	for entry := range ht.Iter() {
+		kv = append(kv, entry)
+	}
+
+	if len(kv) != 5 {
+		t.Errorf("Failed TestIter -> Expected size: %d | Got: %d", 5, len(kv))
 	}
 }
