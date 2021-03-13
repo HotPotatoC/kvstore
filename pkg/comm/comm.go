@@ -9,32 +9,38 @@ import (
 
 // Comm is the basic tcp communication
 type Comm struct {
-	connection net.Conn
+	Conn net.Conn
 }
 
 // New creates a new tcp comm
 func New(addr string) (*Comm, error) {
 	conn, err := newConnection(addr, time.Second*30)
 	return &Comm{
-		connection: conn,
+		Conn: conn,
 	}, err
+}
+
+func NewWithConn(conn net.Conn) *Comm {
+	return &Comm{
+		Conn: conn,
+	}
 }
 
 // Connection returns the connection
 func (c *Comm) Connection() net.Conn {
-	return c.connection
+	return c.Conn
 }
 
 // Send writes data to the connection
 func (c *Comm) Send(b []byte) (err error) {
-	_, err = c.connection.Write(b)
+	_, err = c.Conn.Write(b)
 	return
 }
 
 // Read reads data from the connection
 func (c *Comm) Read() (buffer []byte, n int, err error) {
 	buffer = make([]byte, tcp.MaxTCPBufferSize)
-	n, err = c.connection.Read(buffer)
+	n, err = c.Conn.Read(buffer)
 	return
 }
 
