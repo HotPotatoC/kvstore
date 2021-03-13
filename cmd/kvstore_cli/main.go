@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/HotPotatoC/kvstore/cmd/kvstore_cli/internal/client"
+	"github.com/HotPotatoC/kvstore/internal/cli"
 )
 
 var (
@@ -17,7 +17,7 @@ func init() {
 func main() {
 	flag.Parse()
 
-	cli := client.New(*addr)
+	cli := cli.New(*addr)
 
 	cli.Start()
 }
