@@ -87,14 +87,6 @@ func (ht *HashTable) Remove(k string) int {
 	return count
 }
 
-// List returns the table
-func (ht *HashTable) List() []*Bucket {
-	ht.m.RLock()
-	defer ht.m.RUnlock()
-
-	return ht.buckets
-}
-
 // Iter represents an iterator for the hashtable
 func (ht *HashTable) Iter() <-chan *Entry {
 	ht.m.RLock()
