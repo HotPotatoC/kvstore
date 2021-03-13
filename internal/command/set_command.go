@@ -24,7 +24,12 @@ func (c setCommand) Execute(args []string) []byte {
 	if len(args) < 2 {
 		return []byte("Missing key/value arguments")
 	}
+
 	key := args[0]
+	if key == "" {
+		return []byte("Missing key")
+	}
+
 	value := strings.Join(args[1:], " ")
 
 	c.db.Set(key, value)
