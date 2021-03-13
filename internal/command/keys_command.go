@@ -25,13 +25,9 @@ func (c keysCommand) Execute(args []string) []byte {
 	var b bytes.Buffer
 	idx := 1
 	for entry := range c.db.Iter() {
-		for entry != nil {
-			b.WriteString(fmt.Sprintf("%d) %s", idx, entry.Key))
-			b.WriteString("\n")
-
-			entry = entry.Next
-			idx++
-		}
+		b.WriteString(fmt.Sprintf("%d) %s", idx, entry.Key))
+		b.WriteString("\n")
+		idx++
 	}
 
 	return b.Bytes()

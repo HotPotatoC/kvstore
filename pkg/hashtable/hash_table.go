@@ -57,7 +57,7 @@ func (ht *HashTable) Set(k string, v string) {
 	ht.insert(k, v)
 	count := ht.nSize - initialSize
 	if count > 0 {
-		ht.verifyLoadFactorExpansion()
+		ht.verifyLoadFactor()
 	}
 }
 
@@ -79,10 +79,10 @@ func (ht *HashTable) Remove(k string) int {
 	ht.m.Lock()
 	defer ht.m.Unlock()
 	initialSize := ht.nSize
-	ht.del(k)
+	ht.delete(k)
 	count := initialSize - ht.nSize
 	if count > 0 {
-		ht.verifyLoadFactorExpansion()
+		ht.verifyLoadFactor()
 	}
 	return count
 }
@@ -92,14 +92,7 @@ func (ht *HashTable) Iter() <-chan *Entry {
 	ht.m.RLock()
 	defer ht.m.RUnlock()
 	ch := make(chan *Entry, 0)
-	go func() {
-		defer close(ch)
-		for _, bucket := range ht.buckets {
-			if bucket != nil {
-				ch <- bucket.Head
-			}
-		}
-	}()
+	go ht.iterate(ch)
 	return ch
 }
 
@@ -125,28 +118,27 @@ func (ht *HashTable) insert(k string, v string) {
 		ht.buckets[index] = &Bucket{}
 		entry.Next = ht.buckets[index].Head
 		ht.buckets[index].Head = entry
-	} else {
-		iterator := ht.buckets[index].Head
-		for {
-			if iterator.Next != nil {
-				data := iterator.Next
-				if data.Key == k {
-					data.Value = v
-					break
-				}
-			} else {
-				entry.Next = ht.buckets[index].Head
-				ht.buckets[index].Head = entry
-				break
-			}
-			iterator = iterator.Next
+		ht.nSize++
+		return
+	}
+
+	for iterator := ht.buckets[index].Head; iterator != nil; iterator = iterator.Next {
+		if iterator.Next == nil {
+			entry.Next = ht.buckets[index].Head
+			ht.buckets[index].Head = entry
+			break
+		}
+
+		if iterator.Next.Key == k {
+			iterator.Next.Value = v
+			break
 		}
 	}
 
 	ht.nSize++
 }
 
-func (ht *HashTable) del(k string) {
+func (ht *HashTable) delete(k string) {
 	index := ht.hashkey(k, len(ht.buckets))
 
 	if ht.buckets[index] == nil || ht.buckets[index].Head == nil {
@@ -175,6 +167,7 @@ func (ht *HashTable) lookup(k string) *Entry {
 	if ht.buckets[index] == nil {
 		return nil
 	}
+
 	iterator := ht.buckets[index].Head
 	for iterator != nil {
 		if iterator.Key == k {
@@ -185,35 +178,54 @@ func (ht *HashTable) lookup(k string) *Entry {
 	return nil
 }
 
+func (ht *HashTable) iterate(ch chan<- *Entry) {
+	for _, bucket := range ht.buckets {
+		if bucket != nil {
+			for entry := bucket.Head; entry != nil; entry = entry.Next {
+				ch <- entry
+			}
+		}
+	}
+	close(ch)
+}
+
 func (ht *HashTable) loadFactor() float64 {
 	return float64(ht.nSize) / float64(len(ht.buckets))
 }
 
-func (ht *HashTable) verifyLoadFactorExpansion() {
+func (ht *HashTable) verifyLoadFactor() {
 	if ht.nSize == 0 {
 		return
 	}
 
 	lf := ht.loadFactor()
 	if lf > maxLoadFactor {
-		newTable := newHashTable(ht.nSize * 2)
-		for _, bucket := range ht.buckets {
-			for bucket != nil && bucket.Head != nil {
-				newTable.insert(bucket.Head.Key, bucket.Head.Value)
-				bucket.Head = bucket.Head.Next
-			}
-		}
-		ht.buckets = newTable.buckets
+		ht.increaseCapacity()
 	} else if lf < minLoadFactor {
-		newTable := newHashTable(len(ht.buckets) / 2)
-		for _, bucket := range ht.buckets {
-			for bucket != nil && bucket.Head != nil {
-				newTable.insert(bucket.Head.Key, bucket.Head.Value)
-				bucket.Head = bucket.Head.Next
-			}
-		}
-		ht.buckets = newTable.buckets
+		ht.decreaseCapacity()
 	}
+}
+
+func (ht *HashTable) increaseCapacity() {
+	newTable := newHashTable(ht.nSize * 2)
+	for _, bucket := range ht.buckets {
+		for bucket != nil && bucket.Head != nil {
+			newTable.insert(bucket.Head.Key, bucket.Head.Value)
+			bucket.Head = bucket.Head.Next
+		}
+	}
+	ht.buckets = newTable.buckets
+}
+
+func (ht *HashTable) decreaseCapacity() {
+	newTable := newHashTable(len(ht.buckets) / 2)
+	for _, bucket := range ht.buckets {
+		for bucket != nil && bucket.Head != nil {
+			newTable.insert(bucket.Head.Key, bucket.Head.Value)
+			bucket.Head = bucket.Head.Next
+		}
+	}
+	ht.buckets = newTable.buckets
 }
 
 func (ht *HashTable) newEntry(key, value string) *Entry {

@@ -43,15 +43,15 @@ func TestPopulate_100000(t *testing.T) {
 	}
 }
 
-func TestPut(t *testing.T) {
+func TestSet(t *testing.T) {
 	ht := populate(4)
 	if ht.Size() != 4 {
-		t.Errorf("Failed TestPut -> Expected Size: %d | Got: %d", 4, ht.Size())
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 4, ht.Size())
 	}
 
 	ht.Set("my-key", "value")
 	if ht.Size() != 5 {
-		t.Errorf("Failed TestPut -> Expected Size: %d | Got: %d", 5, ht.Size())
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 5, ht.Size())
 	}
 }
 
@@ -85,36 +85,6 @@ func TestIter(t *testing.T) {
 			bucket = bucket.Next
 			t.Log(bucket.Key)
 			t.Log(bucket.Value)
-		}
-	}
-}
-
-func BenchmarkSet(b *testing.B) {
-	ht := hashtable.New()
-	for i := 0; i < b.N; i++ {
-		ht.Set(fmt.Sprintf("k%d", i), fmt.Sprintf("v%d", i))
-	}
-}
-
-func BenchmarkDel(b *testing.B) {
-	ht := populate(b.N)
-	for i := 0; i < b.N; i++ {
-		ht.Remove(fmt.Sprintf("k%d", i))
-	}
-}
-
-func BenchmarkGet(b *testing.B) {
-	ht := populate(b.N)
-	for i := 0; i < b.N; i++ {
-		ht.Get(fmt.Sprintf("k%d", i))
-	}
-}
-
-func BenchmarkIter(b *testing.B) {
-	ht := populate(b.N)
-	for bucket := range ht.Iter() {
-		if !ht.Exist(bucket.Key) {
-			b.Errorf("Iter benchmark failed, key does not exists")
 		}
 	}
 }
