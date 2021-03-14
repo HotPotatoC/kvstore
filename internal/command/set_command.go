@@ -22,12 +22,12 @@ func (c setCommand) String() string {
 
 func (c setCommand) Execute(args []string) []byte {
 	if len(args) < 2 {
-		return []byte("Missing key/value arguments")
+		return []byte(ErrMissingKeyValueArg.Error())
 	}
 
 	key := args[0]
 	if key == "" {
-		return []byte("Missing key")
+		return []byte(ErrMissingKeyArg.Error())
 	}
 
 	value := strings.Join(args[1:], " ")

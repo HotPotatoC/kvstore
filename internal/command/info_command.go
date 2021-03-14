@@ -1,8 +1,6 @@
 package command
 
 import (
-	"fmt"
-
 	"github.com/HotPotatoC/kvstore/internal/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
@@ -29,7 +27,7 @@ func (c infoCommand) Execute(args []string) []byte {
 
 	infoData, err := c.stats.JSON()
 	if err != nil {
-		return []byte(fmt.Sprintf("INTERNAL ERR: %v", err.Error()))
+		return []byte(ErrInternalError.Error())
 	}
 	return infoData
 }

@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -104,7 +103,7 @@ func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("Command '%s' does not exists", cmd)
+		return nil, command.ErrCommandDoesNotExist
 	}
 
 	buffer, err := packet.Encode()
@@ -117,21 +116,21 @@ func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 
 func (c *CLI) set(args []byte) (*packet.Packet, error) {
 	if len(bytes.Split(args, []byte(" "))) < 2 {
-		return nil, errors.New("Missing key/value arguments")
+		return nil, command.ErrMissingKeyValueArg
 	}
 	return packet.NewPacket(command.SET, args), nil
 }
 
 func (c *CLI) get(args []byte) (*packet.Packet, error) {
 	if bytes.Compare(args, []byte("")) == 0 {
-		return nil, errors.New("Missing key argument")
+		return nil, command.ErrMissingKeyArg
 	}
 	return packet.NewPacket(command.GET, args), nil
 }
 
 func (c *CLI) del(args []byte) (*packet.Packet, error) {
 	if bytes.Compare(args, []byte("")) == 0 {
-		return nil, errors.New("Missing key argument")
+		return nil, command.ErrMissingKeyArg
 	}
 	return packet.NewPacket(command.DEL, args), nil
 }

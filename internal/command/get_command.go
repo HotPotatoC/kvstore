@@ -23,7 +23,7 @@ func (c getCommand) String() string {
 func (c getCommand) Execute(args []string) []byte {
 	key := args[0]
 	if key == "" {
-		return []byte("Missing key")
+		return []byte(ErrMissingKeyArg.Error())
 	}
 
 	result := c.db.Get(key)
