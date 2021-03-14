@@ -18,8 +18,8 @@ func TestCommandDEL(t *testing.T) {
 	}
 
 	result = cmd.Execute([]string{""})
-	if !bytes.Equal([]byte("Missing key"), result) {
-		t.Errorf("Failed TestCommandDEL -> Expected: %s | Got: %s", []byte("Missing key"), result)
+	if !bytes.Equal([]byte(command.ErrMissingKeyArg.Error()), result) {
+		t.Errorf("Failed TestCommandDEL -> Expected: %s | Got: %s", []byte(command.ErrMissingKeyArg.Error()), result)
 	}
 
 	result = cmd.Execute([]string{"k11"})

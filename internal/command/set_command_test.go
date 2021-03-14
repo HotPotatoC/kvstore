@@ -19,12 +19,12 @@ func TestCommandSET(t *testing.T) {
 	}
 
 	result = cmd.Execute([]string{"key"})
-	if !bytes.Equal([]byte("Missing key/value arguments"), result) {
-		t.Errorf("Failed TestCommandSET -> Expected: %s | Got: %s", []byte("Missing key/value arguments"), result)
+	if !bytes.Equal([]byte(command.ErrMissingKeyValueArg.Error()), result) {
+		t.Errorf("Failed TestCommandSET -> Expected: %s | Got: %s", []byte(command.ErrMissingKeyValueArg.Error()), result)
 	}
 
 	result = cmd.Execute([]string{"", "value"})
-	if !bytes.Equal([]byte("Missing key"), result) {
-		t.Errorf("Failed TestCommandSET -> Expected: %s | Got: %s", []byte("Missing key"), result)
+	if !bytes.Equal([]byte(command.ErrMissingKeyArg.Error()), result) {
+		t.Errorf("Failed TestCommandSET -> Expected: %s | Got: %s", []byte(command.ErrMissingKeyArg.Error()), result)
 	}
 }

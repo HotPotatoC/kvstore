@@ -18,7 +18,7 @@ func TestCommandGET(t *testing.T) {
 	}
 
 	result = cmd.Execute([]string{""})
-	if !bytes.Equal([]byte("Missing key"), result) {
+	if !bytes.Equal([]byte(command.ErrMissingKeyArg.Error()), result) {
 		t.Errorf("Failed TestCommandGET -> Expected: %s | Got: %s", []byte("Missing key"), result)
 	}
 
