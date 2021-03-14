@@ -1,6 +1,9 @@
 package command
 
-import "github.com/HotPotatoC/kvstore/pkg/hashtable"
+import (
+	"github.com/HotPotatoC/kvstore/internal/stats"
+	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+)
 
 // Op represents the command type
 type Op int
@@ -16,10 +19,13 @@ const (
 	LIST
 	// KEYS displays all the saved keys in the database
 	KEYS
+
+	// INFO displays the current status of the server (memory allocs, connected clients, uptime, etc.)
+	INFO
 )
 
 func (c Op) String() string {
-	return [...]string{"set", "get", "del", "list", "keys"}[c]
+	return [...]string{"set", "get", "del", "list", "keys", "info"}[c]
 }
 
 // Command is the set of methods for a commmand
@@ -29,7 +35,7 @@ type Command interface {
 }
 
 // New constructs the given command operation
-func New(db *hashtable.HashTable, cmd Op) Command {
+func New(db *hashtable.HashTable, stats *stats.Stats, cmd Op) Command {
 	var command Command
 	switch cmd {
 	case SET:
@@ -46,6 +52,9 @@ func New(db *hashtable.HashTable, cmd Op) Command {
 		break
 	case KEYS:
 		command = makeKeysCommand(db)
+		break
+	case INFO:
+		command = makeInfoCommand(db, stats)
 		break
 	default:
 		command = nil

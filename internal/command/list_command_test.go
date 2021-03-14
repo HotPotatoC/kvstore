@@ -10,7 +10,7 @@ import (
 func TestCommandLIST(t *testing.T) {
 	db := HTPopulate(10)
 
-	cmd := command.New(db, command.LIST)
+	cmd := command.New(db, nil, command.LIST)
 
 	result := cmd.Execute([]string{})
 

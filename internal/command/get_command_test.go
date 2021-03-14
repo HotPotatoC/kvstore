@@ -10,7 +10,7 @@ import (
 func TestCommandGET(t *testing.T) {
 	db := HTPopulate(10)
 
-	cmd := command.New(db, command.GET)
+	cmd := command.New(db, nil, command.GET)
 
 	result := cmd.Execute([]string{"k5"})
 	if !bytes.Equal([]byte("\"v5\""), result) {

@@ -99,11 +99,15 @@ func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 			return nil, err
 		}
 	case command.LIST.String():
-		if packet, err = c.list(args); err != nil {
+		if packet, err = c.list(); err != nil {
 			return nil, err
 		}
 	case command.KEYS.String():
-		if packet, err = c.keys(args); err != nil {
+		if packet, err = c.keys(); err != nil {
+			return nil, err
+		}
+	case command.INFO.String():
+		if packet, err = c.info(); err != nil {
 			return nil, err
 		}
 	default:
@@ -139,10 +143,14 @@ func (c *CLI) del(args []byte) (*packet.Packet, error) {
 	return packet.NewPacket(command.DEL, args), nil
 }
 
-func (c *CLI) list(args []byte) (*packet.Packet, error) {
-	return packet.NewPacket(command.LIST, args), nil
+func (c *CLI) list() (*packet.Packet, error) {
+	return packet.NewPacket(command.LIST, []byte("")), nil
 }
 
-func (c *CLI) keys(args []byte) (*packet.Packet, error) {
-	return packet.NewPacket(command.KEYS, args), nil
+func (c *CLI) keys() (*packet.Packet, error) {
+	return packet.NewPacket(command.KEYS, []byte("")), nil
+}
+
+func (c *CLI) info() (*packet.Packet, error) {
+	return packet.NewPacket(command.INFO, []byte("")), nil
 }

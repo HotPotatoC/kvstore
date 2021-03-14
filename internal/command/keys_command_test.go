@@ -10,7 +10,7 @@ import (
 func TestCommandKEYS(t *testing.T) {
 	db := HTPopulate(10)
 
-	cmd := command.New(db, command.KEYS)
+	cmd := command.New(db, nil, command.KEYS)
 
 	result := cmd.Execute([]string{})
 

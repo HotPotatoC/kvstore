@@ -11,7 +11,7 @@ import (
 func TestCommandSET(t *testing.T) {
 	db := hashtable.New()
 
-	cmd := command.New(db, command.SET)
+	cmd := command.New(db, nil, command.SET)
 
 	result := cmd.Execute([]string{"key", "value"})
 	if !bytes.Equal([]byte("OK"), result) {

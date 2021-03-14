@@ -10,7 +10,7 @@ import (
 func TestCommandDEL(t *testing.T) {
 	db := HTPopulate(10)
 
-	cmd := command.New(db, command.DEL)
+	cmd := command.New(db, nil, command.DEL)
 
 	result := cmd.Execute([]string{"k5"})
 	if !bytes.Equal([]byte("1"), result) {
