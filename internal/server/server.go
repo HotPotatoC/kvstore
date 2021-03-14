@@ -18,37 +18,32 @@ import (
 	"go.uber.org/zap"
 )
 
-var log *zap.SugaredLogger
-
 // Server represents the database server
 type Server struct {
-	db *hashtable.HashTable
-
+	db  *hashtable.HashTable
+	log *zap.SugaredLogger
 	// Info
 	*stats.Stats
 	Version string `json:"version"`
 	Build   string `json:"build"`
 }
 
-func init() {
-	log = logger.NewLogger()
-}
-
 // New creates a new kvstore server
 func New(version, build string) *Server {
 	return &Server{
 		db:      hashtable.New(),
+		log:     logger.NewLogger(),
 		Version: version,
 		Build:   build,
-		Stats: &stats.Stats{},
+		Stats:   &stats.Stats{},
 	}
 }
 
 // Start runs the server
 func (s *Server) Start(host string, port int) {
-	log.Info("KVStore is starting...")
-	log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
-	log.Info("starting tcp server...")
+	s.log.Info("KVStore is starting...")
+	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
+	s.log.Info("starting tcp server...")
 	tcpServer := tcp.New()
 
 	tcpServer.OnConnected = s.onConnected
@@ -74,17 +69,17 @@ func (s *Server) Start(host string, port int) {
 	  PID: %d
 
 `, s.Version, port, os.Getpid())
-	log.Info("Ready to accept connections.")
+	s.log.Info("Ready to accept connections.")
 
 	// Graceful shutdown
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	signal := <-c
 
-	log.Infof("received %s signal", signal)
-	log.Info("Shutting down server...")
+	s.log.Infof("received %s signal", signal)
+	s.log.Info("Shutting down server...")
 	tcpServer.Stop()
-	log.Info("Goodbye 👋")
+	s.log.Info("Goodbye 👋")
 }
 
 func (s *Server) onConnected(conn net.Conn) {
@@ -104,7 +99,7 @@ func (s *Server) onMessage(conn net.Conn, msg []byte) {
 
 	err := packet.Decode(buffer)
 	if err != nil {
-		log.Error(err)
+		s.log.Error(err)
 	}
 
 	command := command.New(s.db, s.Stats, packet.Cmd)

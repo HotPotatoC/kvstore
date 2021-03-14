@@ -6,26 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
-	"github.com/HotPotatoC/kvstore/pkg/logger"
-	"go.uber.org/zap"
 )
-
-var log *zap.SugaredLogger
 
 // CLI represents the cli client
 type CLI struct {
 	comm   *comm.Comm
 	reader *bufio.Reader
-}
-
-func init() {
-	log = logger.NewLogger()
 }
 
 // New creates a new CLI client
@@ -55,7 +48,7 @@ start:
 		t1 := time.Now()
 		preprocessed, err := c.preprocess(input)
 		if err != nil {
-			log.Error(err)
+			log.Println(err)
 			continue start
 		}
 
