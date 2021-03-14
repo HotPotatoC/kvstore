@@ -91,7 +91,7 @@ func (ht *HashTable) Remove(k string) int {
 func (ht *HashTable) Iter() <-chan *Entry {
 	ht.m.RLock()
 	defer ht.m.RUnlock()
-	ch := make(chan *Entry, 0)
+	ch := make(chan *Entry)
 	go ht.iterate(ch)
 	return ch
 }

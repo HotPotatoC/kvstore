@@ -32,6 +32,10 @@ func TestComm(t *testing.T) {
 			}
 
 			data, _, err := comm.Read()
+			if err != nil {
+				t.Errorf("Expected nil but got an error: %v", err)
+			}
+
 			if bytes.Equal([]byte("Comm2"), data) {
 				t.Errorf("Expected 'Comm2' but got: %s", string(data))
 			}

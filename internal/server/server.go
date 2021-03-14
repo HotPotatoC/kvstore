@@ -64,8 +64,8 @@ func (s *Server) Start(host string, port int) {
 	s.log.Info("Ready to accept connections.")
 
 	// Graceful shutdown
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	signal := <-c
 
 	s.log.Infof("received %s signal", signal)

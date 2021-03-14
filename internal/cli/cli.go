@@ -122,14 +122,14 @@ func (c *CLI) set(args []byte) (*packet.Packet, error) {
 }
 
 func (c *CLI) get(args []byte) (*packet.Packet, error) {
-	if bytes.Compare(args, []byte("")) == 0 {
+	if bytes.Equal(args, []byte("")) {
 		return nil, command.ErrMissingKeyArg
 	}
 	return packet.NewPacket(command.GET, args), nil
 }
 
 func (c *CLI) del(args []byte) (*packet.Packet, error) {
-	if bytes.Compare(args, []byte("")) == 0 {
+	if bytes.Equal(args, []byte("")) {
 		return nil, command.ErrMissingKeyArg
 	}
 	return packet.NewPacket(command.DEL, args), nil

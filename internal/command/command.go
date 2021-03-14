@@ -40,25 +40,18 @@ func New(db *hashtable.HashTable, stats *stats.Stats, cmd Op) Command {
 	switch cmd {
 	case SET:
 		command = makeSetCommand(db)
-		break
 	case GET:
 		command = makeGetCommand(db)
-		break
 	case DEL:
 		command = makeDelCommand(db)
-		break
 	case LIST:
 		command = makeListCommand(db)
-		break
 	case KEYS:
 		command = makeKeysCommand(db)
-		break
 	case INFO:
 		command = makeInfoCommand(db, stats)
-		break
 	default:
 		command = nil
-		break
 	}
 
 	return command
