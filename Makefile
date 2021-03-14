@@ -1,7 +1,7 @@
 BINARY_DIR := .bin/
 
 APP_NAME=kvstore
-VERSION?=v0.6.2
+VERSION?=v0.6.3
 BUILD=$(shell git rev-parse HEAD)
 
 GO=go
