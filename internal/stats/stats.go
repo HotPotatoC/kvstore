@@ -69,6 +69,7 @@ func (s *Stats) UpdateMemStats() {
 	s.MemoryTotalAlloc = m.TotalAlloc
 }
 
+// JSON returns the json representation of this struct
 func (s *Stats) JSON() ([]byte, error) {
 	return json.MarshalIndent(s, "", "\t")
 }

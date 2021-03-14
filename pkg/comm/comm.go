@@ -7,12 +7,12 @@ import (
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 )
 
-// Comm is the basic tcp communication
+// Comm is a basic stream communication
 type Comm struct {
 	Conn net.Conn
 }
 
-// New creates a new tcp comm
+// New creates a new comm
 func New(addr string) (*Comm, error) {
 	conn, err := newConnection(addr, time.Second*30)
 	return &Comm{
@@ -20,6 +20,7 @@ func New(addr string) (*Comm, error) {
 	}, err
 }
 
+// NewWithConn creates a new comm with the given connection
 func NewWithConn(conn net.Conn) *Comm {
 	return &Comm{
 		Conn: conn,
