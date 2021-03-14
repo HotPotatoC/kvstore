@@ -1,16 +1,11 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/internal/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
@@ -46,10 +41,7 @@ func (s *Server) Start(host string, port int) {
 	s.log.Info("starting tcp server...")
 	tcpServer := tcp.New()
 
-	tcpServer.OnConnected = s.onConnected
-	tcpServer.OnDisconnected = s.onDisconnected
-	tcpServer.OnMessage = s.onMessage
-
+	s.attachHooks(tcpServer)
 	s.Stats.Init()
 
 	s.TCPHost = host
@@ -80,33 +72,4 @@ func (s *Server) Start(host string, port int) {
 	s.log.Info("Shutting down server...")
 	tcpServer.Stop()
 	s.log.Info("Goodbye 👋")
-}
-
-func (s *Server) onConnected(conn net.Conn) {
-	// Increment connected clients
-	s.ConnectedCount++
-	s.TotalConnectionsCount++
-}
-
-func (s *Server) onDisconnected(conn net.Conn) {
-	// Decrement connected clients
-	s.ConnectedCount--
-}
-
-func (s *Server) onMessage(conn net.Conn, msg []byte) {
-	buffer := bytes.NewBuffer(msg)
-	packet := new(packet.Packet)
-
-	err := packet.Decode(buffer)
-	if err != nil {
-		s.log.Error(err)
-	}
-
-	command := command.New(s.db, s.Stats, packet.Cmd)
-	if command == nil {
-		conn.Write([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
-	} else {
-		result := command.Execute(strings.Split(string(packet.Args), " "))
-		conn.Write([]byte(fmt.Sprintf("%s\n", result)))
-	}
 }
