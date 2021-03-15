@@ -59,7 +59,7 @@ start:
 			log.Fatal(err)
 		}
 
-		fmt.Println(string(msg))
+		fmt.Print(string(msg))
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/internal/stats"
+	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"

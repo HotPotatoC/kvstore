@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/stats"
+	"github.com/HotPotatoC/kvstore/internal/server/stats"
 )
 
 func TestCommandINFO(t *testing.T) {
