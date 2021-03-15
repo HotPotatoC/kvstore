@@ -3,8 +3,6 @@ package comm
 import (
 	"net"
 	"time"
-
-	"github.com/HotPotatoC/kvstore/pkg/tcp"
 )
 
 // Comm is a basic stream communication
@@ -40,7 +38,7 @@ func (c *Comm) Send(b []byte) (err error) {
 
 // Read reads data from the connection
 func (c *Comm) Read() (buffer []byte, n int, err error) {
-	buffer = make([]byte, tcp.MaxTCPBufferSize)
+	buffer = make([]byte, 1024 * 36)
 	n, err = c.Conn.Read(buffer)
 	return
 }

@@ -9,11 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// MaxTCPBufferSize is the maximum buffer size (36kb)
-	MaxTCPBufferSize = 1024 * 36
-)
-
 var log *zap.SugaredLogger
 
 // Server represents a tcp server
@@ -75,7 +70,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		log.Fatalf("failed setting connection read deadline: %v", err)
 	}
 
-	buffer := make([]byte, MaxTCPBufferSize)
+	buffer := make([]byte, 1024 * 36)
 
 	for {
 		n, err := conn.Read(buffer)
