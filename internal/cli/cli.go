@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/packet"
@@ -34,33 +36,41 @@ func New(addr string) *CLI {
 
 // Start runs the CLI client
 func (c *CLI) Start() {
-start:
-	for {
-		fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
+	go func() {
+	start:
+		for {
+			fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
 
-		input, err := c.reader.ReadBytes('\n')
-		if err != nil && err != io.EOF {
-			log.Fatal(err)
+			input, err := c.reader.ReadBytes('\n')
+			if err != nil && err != io.EOF {
+				log.Fatal(err)
+			}
+
+			preprocessed, err := c.preprocess(input)
+			if err != nil {
+				log.Println(err)
+				continue start
+			}
+
+			err = c.comm.Send(preprocessed.Bytes())
+			if err != nil && err != io.EOF {
+				log.Fatal(err)
+			}
+
+			msg, _, err := c.comm.Read()
+			if err != nil && err != io.EOF {
+				log.Fatal(err)
+			}
+
+			fmt.Print(string(msg))
 		}
+	}()
 
-		preprocessed, err := c.preprocess(input)
-		if err != nil {
-			log.Println(err)
-			continue start
-		}
-
-		err = c.comm.Send(preprocessed.Bytes())
-		if err != nil && err != io.EOF {
-			log.Fatal(err)
-		}
-
-		msg, _, err := c.comm.Read()
-		if err != nil && err != io.EOF {
-			log.Fatal(err)
-		}
-
-		fmt.Print(string(msg))
-	}
+	ch := make(chan os.Signal, 2)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	<-ch
+	c.comm.Connection().Close()
+	os.Exit(0)
 }
 
 func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
@@ -98,6 +108,9 @@ func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 		if packet, err = c.info(); err != nil {
 			return nil, err
 		}
+	case "exit":
+		c.comm.Connection().Close()
+		os.Exit(0)
 	default:
 		return nil, command.ErrCommandDoesNotExist
 	}
