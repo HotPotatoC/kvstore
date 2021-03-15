@@ -1,8 +1,6 @@
 package command
 
 import (
-	"fmt"
-
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
 
@@ -31,5 +29,5 @@ func (c getCommand) Execute(args []string) []byte {
 		return []byte("<nil>")
 	}
 
-	return []byte(fmt.Sprintf(`"%s"`, result))
+	return []byte(result)
 }
