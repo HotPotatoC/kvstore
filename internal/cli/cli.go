@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/packet"
@@ -44,7 +43,6 @@ start:
 			log.Fatal(err)
 		}
 
-		t1 := time.Now()
 		preprocessed, err := c.preprocess(input)
 		if err != nil {
 			log.Println(err)
@@ -61,8 +59,6 @@ start:
 			log.Fatal(err)
 		}
 
-		t2 := time.Now()
-		fmt.Printf("%fs\n", t2.Sub(t1).Seconds())
 		fmt.Println(string(msg))
 	}
 }
