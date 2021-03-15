@@ -33,6 +33,10 @@ fmt: ## Format go files
 vet: ## go vet
 	@$(GO) vet ./...
 
+.PHONY: test
+test: ## Runs unit tests [cmd: go test -v -bench . -benchmem ./...]
+	@$(GO) test -v -bench . -benchmem ./...
+
 .PHONY: clean
 clean: ## Deletes all compiled / executable files
 	@find .bin -type f -name '*' -print0 | xargs -0 rm --
