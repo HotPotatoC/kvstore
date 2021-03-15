@@ -3,13 +3,13 @@ package server
 import (
 	"fmt"
 	"os"
-	"os/signal"
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
+	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -62,10 +62,7 @@ func (s *Server) Start(host string, port int) {
 `, s.Version, port, os.Getpid())
 	s.log.Info("Ready to accept connections.")
 
-	// Graceful shutdown
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	signal := <-c
+	signal := <-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 
 	s.log.Infof("received %s signal", signal)
 	s.log.Info("Shutting down server...")

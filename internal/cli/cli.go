@@ -7,12 +7,12 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/signal"
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
+	"github.com/HotPotatoC/kvstore/pkg/utils"
 )
 
 // CLI represents the cli client
@@ -66,9 +66,7 @@ func (c *CLI) Start() {
 		}
 	}()
 
-	ch := make(chan os.Signal, 2)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	<-ch
+	<-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 	c.comm.Connection().Close()
 	os.Exit(0)
 }
