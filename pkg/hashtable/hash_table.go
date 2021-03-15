@@ -202,25 +202,14 @@ func (ht *HashTable) verifyLoadFactor() {
 
 	lf := ht.loadFactor()
 	if lf > maxLoadFactor {
-		ht.increaseCapacity()
+		ht.updateCapacity(ht.nSize * 2)
 	} else if lf < minLoadFactor {
-		ht.decreaseCapacity()
+		ht.updateCapacity(len(ht.buckets) / 2)
 	}
 }
 
-func (ht *HashTable) increaseCapacity() {
-	newTable := newHashTable(ht.nSize * 2)
-	for _, bucket := range ht.buckets {
-		for bucket != nil && bucket.Head != nil {
-			newTable.insert(bucket.Head.Key, bucket.Head.Value)
-			bucket.Head = bucket.Head.Next
-		}
-	}
-	ht.buckets = newTable.buckets
-}
-
-func (ht *HashTable) decreaseCapacity() {
-	newTable := newHashTable(len(ht.buckets) / 2)
+func (ht *HashTable) updateCapacity(size int) {
+	newTable := newHashTable(size)
 	for _, bucket := range ht.buckets {
 		for bucket != nil && bucket.Head != nil {
 			newTable.insert(bucket.Head.Key, bucket.Head.Value)
