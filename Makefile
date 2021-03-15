@@ -9,8 +9,8 @@ GOOSS=darwin linux windows freebsd netbsd openbsd dragonfly
 GOARCHS=386 arm arm64 amd64
 LDFLAGS=-ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${BUILD}'"
 
-DOCKER_SERVER_REPO_NAME=hotpotatoc/kvstore_server
-DOCKER_CLI_REPO_NAME=hotpotatoc/kvstore_cli
+DOCKER_SERVER_REPO_NAME=hotpotatoc/kvstore-server
+DOCKER_CLI_REPO_NAME=hotpotatoc/kvstore-cli
 
 DOCKER_SERVER_IMG=${DOCKER_SERVER_REPO_NAME}:${VERSION}
 DOCKER_SERVER_LATEST=${DOCKER_SERVER_REPO_NAME}:latest
@@ -52,30 +52,30 @@ install-deps: ## Install dependencies
 
 .PHONY: server
 server: ## Compile the server
-	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_server cmd/$(APP_NAME)_server/main.go
+	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server cmd/$(APP_NAME)-server/main.go
 
 .PHONY: cli
 cli: ## Compile the cli
-	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_cli cmd/$(APP_NAME)_cli/main.go
+	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli cmd/$(APP_NAME)-cli/main.go
 
 .PHONY: all-server
 all-server: ## Cross-compile the server
 	@$(foreach GOOS, $(GOOSS),\
 		$(foreach GOARCH, $(GOARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_server/main.go)))
+			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-server/main.go)))
 
 .PHONY: all-cli
 all-cli: ## Cross-compile the cli
 	@$(foreach GOOS, $(GOOSS),\
 		$(foreach GOARCH, $(GOARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)_$(VERSION)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)_cli/main.go)))
+			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-cli/main.go)))
 
 .PHONY: docker-server
 docker-server: ## Builds the kvstore server docker image
 	@docker build --rm -t $(DOCKER_SERVER_IMG) \
-		-f build/package/container/kvstore_server/Dockerfile \
+		-f build/package/container/kvstore-server/Dockerfile \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \
@@ -85,7 +85,7 @@ docker-server: ## Builds the kvstore server docker image
 .PHONY: docker-cli
 docker-cli: ## Builds the kvstore cli app docker image
 	@docker build --rm -t $(DOCKER_CLI_IMG) \
-		-f build/package/container/kvstore_cli/Dockerfile \
+		-f build/package/container/kvstore-cli/Dockerfile \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \

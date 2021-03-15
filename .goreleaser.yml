@@ -4,9 +4,9 @@ before:
   hooks:
     - go mod download
 builds:
-  - main: ./cmd/kvstore_server/main.go
-    id: "kvstore_server"
-    binary: kvstore_server
+  - main: ./cmd/kvstore-server/main.go
+    id: "kvstore-server"
+    binary: kvstore-server
     ldflags:
       - -s -w -X main.Version={{.Version}} -X main.Build={{.Commit}}
     env:
@@ -28,9 +28,9 @@ builds:
       - goos: darwin
         goarch: 386
 
-  - main: ./cmd/kvstore_cli/main.go
-    id: "kvstore_cli"
-    binary: kvstore_cli
+  - main: ./cmd/kvstore-cli/main.go
+    id: "kvstore-cli"
+    binary: kvstore-cli
     ldflags:
       - -s -w
     env:

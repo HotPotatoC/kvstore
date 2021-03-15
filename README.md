@@ -14,7 +14,8 @@ Want to expand this project? open up an [issue](https://github.com/HotPotatoC/kv
 
 You can install the binaries in the [releases](https://github.com/HotPotatoC/kvstore/releases) tab. Alternatively, to get the latest version of kvstore run:
 
-```
+```sh
+# This will install 2 commands 'kvstore-server' and 'kvstore-cli'
 ❯ go get -u github.com/HotPotatoC/kvstore
 ```
 
@@ -23,7 +24,7 @@ You can install the binaries in the [releases](https://github.com/HotPotatoC/kvs
 Running the kvstore server using the `kvstore_server` command
 
 ```sh
-❯ kvstore_server
+❯ kvstore-server
 
 2021-03-11T17:08:23.104+0700    KVStore is starting...
 2021-03-11T17:08:23.106+0700    version=v1.0.0 build=6ccb99fc20a525ceb8ca384bd2b3967337661874 pid=1
@@ -46,7 +47,7 @@ Running the kvstore server using the `kvstore_server` command
 To interact with the server, on another terminal run the `kvstore_cli` command
 
 ```sh
-❯ kvstore_cli
+❯ kvstore-cli
 
 127.0.0.1:7275> info
 0.000704s

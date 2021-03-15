@@ -23,7 +23,7 @@ COPY . .
 RUN mkdir .bin
 
 RUN go build -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${GIT_COMMIT}'" -v -o \
-    .bin/kvstore_server cmd/kvstore_server/main.go
+    .bin/kvstore-cli cmd/kvstore-cli/main.go
 
 WORKDIR /go/bin
 
@@ -33,4 +33,4 @@ RUN cp -a /go/src/github.com/HotPotatoC/kvstore/.bin/. /go/bin
 
 EXPOSE 7275
 
-CMD [ "kvstore_server" ]
+CMD [ "kvstore-cli" ]
