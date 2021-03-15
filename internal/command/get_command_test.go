@@ -13,7 +13,7 @@ func TestCommandGET(t *testing.T) {
 	cmd := command.New(db, nil, command.GET)
 
 	result := cmd.Execute([]string{"k5"})
-	if !bytes.Equal([]byte("\"v5\""), result) {
+	if !bytes.Equal([]byte("v5"), result) {
 		t.Errorf("Failed TestCommandGET -> Expected: %s | Got: %s", []byte("v5"), result)
 	}
 
