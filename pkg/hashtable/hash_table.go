@@ -17,7 +17,7 @@ const (
 type HashTable struct {
 	buckets []*Bucket
 	nSize   int
-	m       sync.RWMutex
+	mtx     sync.RWMutex
 }
 
 // Bucket represents the hash table bucket
@@ -50,8 +50,8 @@ func newHashTable(size int) *HashTable {
 
 // Set inserts a new key-value pair item into the hash table
 func (ht *HashTable) Set(k string, v string) {
-	ht.m.Lock()
-	defer ht.m.Unlock()
+	ht.mtx.Lock()
+	defer ht.mtx.Unlock()
 
 	initialSize := ht.nSize
 	ht.insert(k, v)
@@ -65,8 +65,8 @@ func (ht *HashTable) Set(k string, v string) {
 // if the result is empty then returns an empty
 // string ("")
 func (ht *HashTable) Get(k string) string {
-	ht.m.RLock()
-	defer ht.m.RUnlock()
+	ht.mtx.RLock()
+	defer ht.mtx.RUnlock()
 	result := ht.lookup(k)
 	if result == nil {
 		return ""
@@ -76,8 +76,8 @@ func (ht *HashTable) Get(k string) string {
 
 // Remove deletes an item by the given key
 func (ht *HashTable) Remove(k string) int {
-	ht.m.Lock()
-	defer ht.m.Unlock()
+	ht.mtx.Lock()
+	defer ht.mtx.Unlock()
 	initialSize := ht.nSize
 	ht.delete(k)
 	count := initialSize - ht.nSize
@@ -89,25 +89,27 @@ func (ht *HashTable) Remove(k string) int {
 
 // Iter represents an iterator for the hashtable
 func (ht *HashTable) Iter() <-chan *Entry {
-	ht.m.RLock()
-	defer ht.m.RUnlock()
 	ch := make(chan *Entry)
-	go ht.iterate(ch)
+	go func() {
+		ht.mtx.RLock()
+		ht.iterate(ch)
+		ht.mtx.RUnlock()
+	}()
 	return ch
 }
 
 // Exist returns true if an item with the given key exists
 // otherwise returns false
 func (ht *HashTable) Exist(k string) bool {
-	ht.m.RLock()
-	defer ht.m.RUnlock()
+	ht.mtx.RLock()
+	defer ht.mtx.RUnlock()
 	return ht.lookup(k) != nil
 }
 
 // Size represents the size of the hash table
 func (ht *HashTable) Size() int {
-	ht.m.RLock()
-	defer ht.m.RUnlock()
+	ht.mtx.RLock()
+	defer ht.mtx.RUnlock()
 	return ht.nSize
 }
 
