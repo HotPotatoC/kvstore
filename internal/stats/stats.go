@@ -17,6 +17,8 @@ func init() {
 
 // Stats stores the information of the kvstore server
 type Stats struct {
+	Version               string        `json:"version"`
+	Build                 string        `json:"build"`
 	OS                    string        `json:"os"`
 	ARCH                  string        `json:"os_arch"`
 	GoVersion             string        `json:"go_version"`

@@ -19,18 +19,17 @@ type Server struct {
 	log *zap.SugaredLogger
 	// Info
 	*stats.Stats
-	Version string `json:"version"`
-	Build   string `json:"build"`
 }
 
 // New creates a new kvstore server
 func New(version, build string) *Server {
 	return &Server{
-		db:      hashtable.New(),
-		log:     logger.NewLogger(),
-		Version: version,
-		Build:   build,
-		Stats:   &stats.Stats{},
+		db:  hashtable.New(),
+		log: logger.NewLogger(),
+		Stats: &stats.Stats{
+			Version: version,
+			Build:   build,
+		},
 	}
 }
 
