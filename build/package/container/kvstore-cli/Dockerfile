@@ -1,4 +1,4 @@
-FROM golang:alpine
+FROM golang:alpine AS build
 
 ARG VERSION=unspecified
 ARG GIT_COMMIT=unspecified
@@ -23,14 +23,14 @@ COPY . .
 RUN mkdir .bin
 
 RUN go build -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${GIT_COMMIT}'" -v -o \
-    .bin/kvstore-cli cmd/kvstore-cli/main.go
+    /go/bin/kvstore-cli cmd/kvstore-cli/main.go
 
-WORKDIR /go/bin
+FROM scratch
 
-ENV PATH=/go/bin:$PATH
+WORKDIR /usr/bin/
 
-RUN cp -a /go/src/github.com/HotPotatoC/kvstore/.bin/. /go/bin
+COPY --from=build /go/bin/kvstore-cli .
 
-EXPOSE 7275
+ENV PATH=/usr/bin/:$PATH
 
-CMD [ "kvstore-cli" ]
+ENTRYPOINT [ "kvstore-cli" ]
