@@ -75,6 +75,54 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestFlush_100(t *testing.T) {
+	ht := populate(100)
+	if ht.Size() != 100 {
+		t.Errorf("Failed TestFlush_100 -> Expected Size: %d | Got: %d", 100, ht.Size())
+	}
+
+	ht.Flush()
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlush_100 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlush_1000(t *testing.T) {
+	ht := populate(1000)
+	if ht.Size() != 1000 {
+		t.Errorf("Failed TestFlush_1000 -> Expected Size: %d | Got: %d", 1000, ht.Size())
+	}
+
+	ht.Flush()
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlush_1000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlush_10000(t *testing.T) {
+	ht := populate(10000)
+	if ht.Size() != 10000 {
+		t.Errorf("Failed TestFlush_10000 -> Expected Size: %d | Got: %d", 10000, ht.Size())
+	}
+
+	ht.Flush()
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlush_10000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlush_100000(t *testing.T) {
+	ht := populate(100000)
+	if ht.Size() != 100000 {
+		t.Errorf("Failed TestFlush_100000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+
+	ht.Flush()
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlush_100000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
 func TestIter(t *testing.T) {
 	ht := populate(5)
 

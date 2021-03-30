@@ -87,6 +87,22 @@ func (ht *HashTable) Remove(k string) int {
 	return count
 }
 
+// Flush deletes all items in the table
+func (ht *HashTable) Flush() {
+	ch := make(chan *Entry)
+	go func() {
+		ht.mtx.RLock()
+		ht.iterate(ch)
+		ht.mtx.RUnlock()
+	}()
+
+	for entry := range ch {
+		ht.delete(entry.Key)
+	}
+
+	ht.verifyLoadFactor()
+}
+
 // Iter represents an iterator for the hashtable
 func (ht *HashTable) Iter() <-chan *Entry {
 	ch := make(chan *Entry)
