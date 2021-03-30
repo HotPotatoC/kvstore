@@ -19,13 +19,14 @@ const (
 	LIST
 	// KEYS displays all the saved keys in the database
 	KEYS
-
+	// FLUSH delete all keys
+	FLUSH
 	// INFO displays the current status of the server (memory allocs, connected clients, uptime, etc.)
 	INFO
 )
 
 func (c Op) String() string {
-	return [...]string{"set", "get", "del", "list", "keys", "info"}[c]
+	return [...]string{"set", "get", "del", "list", "keys", "flush", "info"}[c]
 }
 
 // Command is the set of methods for a commmand
@@ -48,6 +49,8 @@ func New(db *hashtable.HashTable, stats *stats.Stats, cmd Op) Command {
 		command = makeListCommand(db)
 	case KEYS:
 		command = makeKeysCommand(db)
+	case FLUSH:
+		command = makeFlushCommand(db)
 	case INFO:
 		command = makeInfoCommand(db, stats)
 	default:

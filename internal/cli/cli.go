@@ -102,6 +102,10 @@ func (c *CLI) preprocess(data []byte) (*bytes.Buffer, error) {
 		if packet, err = c.keys(); err != nil {
 			return nil, err
 		}
+	case command.FLUSH.String():
+		if packet, err = c.flush(); err != nil {
+			return nil, err
+		}
 	case command.INFO.String():
 		if packet, err = c.info(); err != nil {
 			return nil, err
@@ -148,6 +152,10 @@ func (c *CLI) list() (*packet.Packet, error) {
 
 func (c *CLI) keys() (*packet.Packet, error) {
 	return packet.NewPacket(command.KEYS, []byte("")), nil
+}
+
+func (c *CLI) flush() (*packet.Packet, error) {
+	return packet.NewPacket(command.FLUSH, []byte("")), nil
 }
 
 func (c *CLI) info() (*packet.Packet, error) {
