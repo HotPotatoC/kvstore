@@ -80,6 +80,7 @@ To interact with the server, on another terminal run the `kvstore_cli` command
 | DEL [key]                  | Remove an entry in the database with the matching key                                            |
 | LIST                       | Displays all the saved data in the database with the format `[key] -> [value]`                   |
 | KEYS                       | Displays all the saved keys in the database                                                      |
+| FLUSH                      | Delete all keys                                                                                  |
 | INFO                       | Displays the current stats of the server (OS, mem usage, total connections, etc.) in json format |
 
 # Todo
