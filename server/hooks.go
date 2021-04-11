@@ -9,13 +9,12 @@ import (
 	"github.com/HotPotatoC/kvstore/command"
 	"github.com/HotPotatoC/kvstore/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
-	"github.com/HotPotatoC/kvstore/pkg/tcp"
 )
 
-func (s *Server) attachHooks(tcpServer *tcp.Server) {
-	tcpServer.OnConnected = s.onConnected
-	tcpServer.OnDisconnected = s.onDisconnected
-	tcpServer.OnMessage = s.onMessage
+func (s *Server) attachHooks() {
+	s.server.OnConnected = s.onConnected
+	s.server.OnDisconnected = s.onDisconnected
+	s.server.OnMessage = s.onMessage
 }
 
 func (s *Server) onConnected(conn net.Conn) {

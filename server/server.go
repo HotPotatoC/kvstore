@@ -15,8 +15,9 @@ import (
 
 // Server represents the database server
 type Server struct {
-	db  *hashtable.HashTable
-	log *zap.SugaredLogger
+	db     *hashtable.HashTable
+	log    *zap.SugaredLogger
+	server *tcp.Server
 	// Info
 	*stats.Stats
 }
@@ -35,37 +36,48 @@ func New(version, build string) *Server {
 
 // Start runs the server
 func (s *Server) Start(host string, port int) {
-	s.log.Info("KVStore is starting...")
-	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
-	s.log.Info("starting tcp server...")
-	tcpServer := tcp.New()
+	s.startupMessage()
+	s.server = tcp.New()
 
-	s.attachHooks(tcpServer)
+	s.attachHooks()
 	s.Stats.Init()
 
 	s.TCPHost = host
 	s.TCPPort = port
 
-	tcpServer.Listen(host, port)
-	fmt.Printf(`
-	 _               _
-	| |             | |
-	| | ____   _____| |_ ___  _ __ ___
-	| |/ /\ \ / / __| __/ _ \| '__/ _ \
-	|   <  \ V /\__ \ || (_) | | |  __/
-	|_|\_\  \_/ |___/\__\___/|_|  \___|
-
-	Started KVStore %s server
-	  Port: %d
-	  PID: %d
-
-`, s.Version, port, os.Getpid())
+	s.server.Listen(host, port)
+	s.printLogo()
 	s.log.Info("Ready to accept connections.")
 
-	signal := <-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
+	rcvSignal := <-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 
+	s.shutdown(rcvSignal)
+}
+
+func (s *Server) shutdown(signal os.Signal) {
 	s.log.Infof("received %s signal", signal)
 	s.log.Info("Shutting down server...")
-	tcpServer.Stop()
+	s.server.Stop()
 	s.log.Info("Goodbye 👋")
+}
+
+func (s *Server) startupMessage() {
+	s.log.Info("KVStore is starting...")
+	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
+	s.log.Info("starting tcp server...")
+}
+
+func (s *Server) printLogo() {
+	logo := "\t _               _\n" +
+		"\t| |             | |\n" +
+		"\t| | ____   _____| |_ ___  _ __ ___\n" +
+		"\t| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\ \n" +
+		"\t|   <  \\ V /\\_  \\ || (_) | | |  __/\n" +
+		"\t|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|\n\n"
+
+	details := "\tStarted KVStore %s server\n" +
+		"\t    Port: %d\n" +
+		"\t    PID: %d\n\n"
+
+	fmt.Printf(logo+details, s.Version, s.TCPPort, os.Getpid())
 }
