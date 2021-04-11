@@ -140,6 +140,11 @@ func (ht *HashTable) insert(k string, v string) {
 		return
 	}
 
+	if ht.buckets[index].Head.Key == k {
+		ht.buckets[index].Head.Value = v
+		return
+	}
+
 	for iterator := ht.buckets[index].Head; iterator != nil; iterator = iterator.Next {
 		if iterator.Next == nil {
 			entry.Next = ht.buckets[index].Head
