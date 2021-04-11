@@ -75,7 +75,7 @@ all-cli: ## Cross-compile the cli
 .PHONY: docker-server
 docker-server: ## Builds the kvstore server docker image
 	@docker build --rm -t $(DOCKER_SERVER_IMG) \
-		-f build/package/container/kvstore-server/Dockerfile \
+		-f build/kvstore-server/Dockerfile \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \
@@ -85,7 +85,7 @@ docker-server: ## Builds the kvstore server docker image
 .PHONY: docker-cli
 docker-cli: ## Builds the kvstore cli app docker image
 	@docker build --rm -t $(DOCKER_CLI_IMG) \
-		-f build/package/container/kvstore-cli/Dockerfile \
+		-f build/kvstore-cli/Dockerfile \
 		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \
