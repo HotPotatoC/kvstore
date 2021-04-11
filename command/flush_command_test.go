@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/command"
 )
 
 func TestCommandFLUSH(t *testing.T) {

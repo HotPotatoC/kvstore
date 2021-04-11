@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"io"
 
-	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/command"
 )
 
 // Packet represents the tcp payload with the command operation and it's arguments

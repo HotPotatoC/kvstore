@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/server/stats"
 )
 
 type infoCommand struct {

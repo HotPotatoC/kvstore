@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/packet"
+	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/packet"
 )
 
 func TestPackageEncode(t *testing.T) {

@@ -5,11 +5,11 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
+	"github.com/HotPotatoC/kvstore/server/stats"
 	"go.uber.org/zap"
 )
 

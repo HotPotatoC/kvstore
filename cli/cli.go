@@ -9,8 +9,8 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/packet"
+	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 )
