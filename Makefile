@@ -8,6 +8,7 @@ GO=go
 GOOSS=darwin linux windows freebsd netbsd openbsd dragonfly
 GOARCHS=386 arm arm64 amd64
 LDFLAGS=-ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${BUILD}'"
+GO_COVERAGE_DIR=.coverage
 
 DOCKER_SERVER_REPO_NAME=hotpotatoc/kvstore-server
 DOCKER_CLI_REPO_NAME=hotpotatoc/kvstore-cli
@@ -36,6 +37,16 @@ vet: ## go vet
 .PHONY: test
 test: ## Runs unit tests [cmd: go test -v -bench . -benchmem ./...]
 	@$(GO) test -v -bench . -benchmem ./...
+
+.PHONY: test-race
+test-race: ## Runs unit tests [cmd: go test -v -bench . -benchmem ./...]
+	@$(GO) test -v -race -bench . -benchmem ./...
+
+.PHONY: coverage-report
+coverage-report:
+	@mkdir -p .coverage
+	@$(GO) test -cover -coverprofile=$(GO_COVERAGE_DIR)/coverage.txt ./...
+	@$(GO) tool cover -html=$(GO_COVERAGE_DIR)/coverage.txt -o $(GO_COVERAGE_DIR)/coverage.html
 
 .PHONY: clean
 clean: ## Deletes all compiled / executable files
