@@ -1,7 +1,9 @@
 name: Publish kvstore server image
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Ci"]
+    types:
+      - completed
 
 jobs:
   push_to_registry:
