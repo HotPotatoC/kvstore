@@ -10,8 +10,8 @@ GOARCHS=386 arm arm64 amd64
 LDFLAGS=-ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${BUILD}'"
 GO_COVERAGE_DIR=.coverage
 
-DOCKER_SERVER_REPO_NAME=hotpotatoc/kvstore-server
-DOCKER_CLI_REPO_NAME=hotpotatoc/kvstore-cli
+DOCKER_SERVER_REPO_NAME=hotpotatoc123/kvstore-server
+DOCKER_CLI_REPO_NAME=hotpotatoc123/kvstore-cli
 
 DOCKER_SERVER_IMG=${DOCKER_SERVER_REPO_NAME}:${VERSION}
 DOCKER_SERVER_LATEST=${DOCKER_SERVER_REPO_NAME}:latest
