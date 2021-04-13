@@ -1,50 +1,62 @@
 # **kvstore**
 
-**kvstore** is a very simple redis-like (key-value pair) in-memory database server implemented in **Go** & hashtables
+**kvstore** is an in-memory database server with the key-value model.
 
 ![kvstore in action](.github/kvstore.gif)
 
 # Please Note
 
-This project is not targeted for production use. The purpose of this project? Mostly just for fun and learning.
+This project is not **yet** targeted for production use. The purpose of this project at the moment is mostly just for fun and learning.
 
 Want to expand this project? open up an [issue](https://github.com/HotPotatoC/kvstore/issues/new) or you can contact me on juandotulung@gmail.com
 
-# Installation
+# Install
 
-You can install the binaries in the [releases](https://github.com/HotPotatoC/kvstore/releases) tab. Alternatively, to get the latest version of kvstore run:
+
+You can install the binaries in the [releases](https://github.com/HotPotatoC/kvstore/releases) tab.
+
+
+### With [go](https://golang.org/dl/)
+```sh
+# This will install the latest versions of the 2 commands 'kvstore-server' and 'kvstore-cli'
+❯ GO111MODULE=on go get -u github.com/HotPotatoC/kvstore
+```
+
+### Manual
 
 ```sh
-# This will install 2 commands 'kvstore-server' and 'kvstore-cli'
-❯ go get -u github.com/HotPotatoC/kvstore
+❯ git clone https://github.com/HotPotatoC/kvstore.git
+
+❯ cd kvstore
+
+❯ make install # Installs 2 commands 'kvstore-server' and 'kvstore-cli'
 ```
 
 # Getting started
 
-Running the kvstore server using the `kvstore_server` command
+Running the kvstore server using the `kvstore-server` command
 
 ```sh
 ❯ kvstore-server
 
-2021-03-11T17:08:23.104+0700    KVStore is starting...
-2021-03-11T17:08:23.106+0700    version=v1.0.0 build=6ccb99fc20a525ceb8ca384bd2b3967337661874 pid=1
-2021-03-11T17:08:23.106+0700    starting tcp server...
-
+2021-04-13T15:52:21.548+0700    KVStore is starting...
+2021-04-13T15:52:21.549+0700    version=v1.0.0 build=6ccb99fc20a525ceb8ca384bd2b3967337661874 pid=1
+2021-04-13T15:52:21.549+0700    starting tcp server...
          _               _
         | |             | |
         | | ____   _____| |_ ___  _ __ ___
         | |/ /\ \ / / __| __/ _ \| '__/ _ \
-        |   <  \ V /\__ \ || (_) | | |  __/
+        |   <  \ V /\_  \ || (_) | | |  __/
         |_|\_\  \_/ |___/\__\___/|_|  \___|
 
         Started KVStore v1.0.0 server
-          Port: 7275
-          PID: 1
+            Port: 7275
+            PID: 1
 
-2021-03-11T17:08:23.107+0700    Ready to accept connections.
+2021-04-13T15:52:21.549+0700    Ready to accept connections.
 ```
 
-To interact with the server, on another terminal run the `kvstore_cli` command
+To interact with the server, on another terminal run the `kvstore-cli` command
 
 ```sh
 ❯ kvstore-cli
@@ -52,21 +64,22 @@ To interact with the server, on another terminal run the `kvstore_cli` command
 127.0.0.1:7275> info
 0.000704s
 {
+  "version": "v1.0.0",
+  "build": "6ccb99fc20a525ceb8ca384bd2b3967337661874",
   "os": "linux",
   "os_arch": "amd64",
-  "go_version": "go1.16.2",
-  "process_id": 27120,
+  "go_version": "go1.16.3",
+  "process_id": 1,
   "tcp_host": "0.0.0.0",
   "tcp_port": 7275,
-  "server_uptime": 74754094200,
-  "server_uptime_human": "1m14.7540944s",
+  "server_uptime": 112609159300,
+  "server_uptime_human": "1m52.6091594s",
   "connected_clients": 1,
   "total_connections_count": 1,
-  "memory_usage": 510888,
-  "memory_usage_human": "498.9 kB",
-  "memory_total_alloc": 510888
+  "memory_usage": 455056,
+  "memory_usage_human": "444.4 kB",
+  "memory_total_alloc": 455056
 }
-
 
 127.0.0.1:7275>
 ```
@@ -82,12 +95,6 @@ To interact with the server, on another terminal run the `kvstore_cli` command
 | KEYS                       | Displays all the saved keys in the database                                                      |
 | FLUSH                      | Delete all keys                                                                                  |
 | INFO                       | Displays the current stats of the server (OS, mem usage, total connections, etc.) in json format |
-
-# Todo
-
-- Wildcard pattern matching
-- Open addressing implementation(?)
-- ...
 
 # Contributing
 
