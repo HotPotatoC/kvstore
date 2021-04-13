@@ -4,6 +4,7 @@
 
 # Binaries, plugins, libs
 .bin/*
+node_modules
 
 *.dll
 *.dylib

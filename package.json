@@ -1,0 +1,13 @@
+{
+  "name": "kvstore",
+  "main": "index.js",
+  "repository": "git@github.com:HotPotatoC/kvstore.git",
+  "author": "HotPotatoC <juandotulung@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^6.0.0"
+  }
+}
