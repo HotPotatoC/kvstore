@@ -11,7 +11,10 @@ import (
 func TestWaitForSignals(t *testing.T) {
 	go func() {
 		time.Sleep(250 * time.Millisecond)
-		syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+		err := syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+		if err != nil {
+			t.Errorf("Failed TestWaitForSignals -> Expected: %v | Got: %s", nil, err)
+		}
 	}()
 
 	signal := <-utils.WaitForSignals(syscall.SIGTERM)

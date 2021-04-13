@@ -41,9 +41,15 @@ func (s *Server) onMessage(conn net.Conn, msg []byte) {
 
 	command := command.New(s.db, s.Stats, packet.Cmd)
 	if command == nil {
-		comm.Send([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
+		err := comm.Send([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
+		if err != nil {
+			s.log.Error(err)
+		}
 	} else {
 		result := command.Execute(strings.Split(string(packet.Args), " "))
-		comm.Send([]byte(fmt.Sprintf("%s\n", result)))
+		err := comm.Send([]byte(fmt.Sprintf("%s\n", result)))
+		if err != nil {
+			s.log.Error(err)
+		}
 	}
 }

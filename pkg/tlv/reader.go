@@ -3,6 +3,7 @@ package tlv
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 )
 
@@ -28,7 +29,10 @@ func (r *Reader) Read() (*Record, error) {
 		return nil, err
 	}
 
-	recordType := readUint(typeBytes, r.codec.TypeBytes)
+	recordType, err := readUint(typeBytes, r.codec.TypeBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	payloadLenBytes := make([]byte, r.codec.LenBytes)
 	_, err = r.reader.Read(payloadLenBytes)
@@ -36,7 +40,10 @@ func (r *Reader) Read() (*Record, error) {
 		return nil, err
 	}
 
-	recordPayloadLen := readUint(payloadLenBytes, r.codec.LenBytes)
+	recordPayloadLen, err := readUint(payloadLenBytes, r.codec.LenBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	if err == io.EOF && recordPayloadLen != 0 {
 		return nil, err
@@ -54,26 +61,38 @@ func (r *Reader) Read() (*Record, error) {
 	}, nil
 }
 
-func readUint(b []byte, n ByteSize) uint {
+func readUint(b []byte, n ByteSize) (uint, error) {
 	reader := bytes.NewReader(b)
 	switch n {
 	case OneByte:
 		var i uint8
-		binary.Read(reader, binary.BigEndian, &i)
-		return uint(i)
+		err := binary.Read(reader, binary.BigEndian, &i)
+		if err != nil {
+			return 0, err
+		}
+		return uint(i), nil
 	case TwoBytes:
 		var i uint16
-		binary.Read(reader, binary.BigEndian, &i)
-		return uint(i)
+		err := binary.Read(reader, binary.BigEndian, &i)
+		if err != nil {
+			return 0, err
+		}
+		return uint(i), nil
 	case FourBytes:
 		var i uint32
-		binary.Read(reader, binary.BigEndian, &i)
-		return uint(i)
+		err := binary.Read(reader, binary.BigEndian, &i)
+		if err != nil {
+			return 0, err
+		}
+		return uint(i), nil
 	case EightBytes:
 		var i uint64
-		binary.Read(reader, binary.BigEndian, &i)
-		return uint(i)
+		err := binary.Read(reader, binary.BigEndian, &i)
+		if err != nil {
+			return 0, err
+		}
+		return uint(i), nil
 	default:
-		return 0
+		return 0, errors.New("invalid byte size")
 	}
 }
