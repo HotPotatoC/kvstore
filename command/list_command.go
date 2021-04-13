@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 )
 
 type listCommand struct {
-	db *hashtable.HashTable
+	db database.Store
 }
 
-func makeListCommand(db *hashtable.HashTable) Command {
+func makeListCommand(db database.Store) Command {
 	return listCommand{
 		db: db,
 	}

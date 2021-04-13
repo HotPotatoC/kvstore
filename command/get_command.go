@@ -1,14 +1,14 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 )
 
 type getCommand struct {
-	db *hashtable.HashTable
+	db database.Store
 }
 
-func makeGetCommand(db *hashtable.HashTable) Command {
+func makeGetCommand(db database.Store) Command {
 	return getCommand{
 		db: db,
 	}

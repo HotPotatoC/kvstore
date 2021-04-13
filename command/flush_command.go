@@ -1,14 +1,14 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 )
 
 type flushCommand struct {
-	db *hashtable.HashTable
+	db database.Store
 }
 
-func makeFlushCommand(db *hashtable.HashTable) Command {
+func makeFlushCommand(db database.Store) Command {
 	return flushCommand{
 		db: db,
 	}

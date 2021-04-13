@@ -8,7 +8,7 @@ import (
 )
 
 func TestCommandFLUSH(t *testing.T) {
-	db := HTPopulate(10)
+	db := NewTempDB(10)
 
 	cmd := command.New(db, nil, command.FLUSH)
 

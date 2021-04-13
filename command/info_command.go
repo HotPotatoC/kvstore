@@ -1,16 +1,16 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 	"github.com/HotPotatoC/kvstore/server/stats"
 )
 
 type infoCommand struct {
-	db *hashtable.HashTable
+	db database.Store
 	stats *stats.Stats
 }
 
-func makeInfoCommand(db *hashtable.HashTable, stats *stats.Stats) Command {
+func makeInfoCommand(db database.Store, stats *stats.Stats) Command {
 	return infoCommand{
 		db: db,
 		stats: stats,

@@ -5,7 +5,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
@@ -15,7 +15,7 @@ import (
 
 // Server represents the database server
 type Server struct {
-	db     *hashtable.HashTable
+	db     database.Store
 	log    *zap.SugaredLogger
 	server *tcp.Server
 	// Info
@@ -25,7 +25,7 @@ type Server struct {
 // New creates a new kvstore server
 func New(version, build string) *Server {
 	return &Server{
-		db:  hashtable.New(),
+		db:  database.New(),
 		log: logger.NewLogger(),
 		Stats: &stats.Stats{
 			Version: version,

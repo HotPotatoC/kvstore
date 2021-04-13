@@ -3,14 +3,14 @@ package command
 import (
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/database"
 )
 
 type delCommand struct {
-	db *hashtable.HashTable
+	db database.Store
 }
 
-func makeDelCommand(db *hashtable.HashTable) Command {
+func makeDelCommand(db database.Store) Command {
 	return delCommand{
 		db: db,
 	}
