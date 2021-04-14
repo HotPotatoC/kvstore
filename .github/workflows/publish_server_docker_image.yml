@@ -1,9 +1,13 @@
 name: Publish kvstore server image
 on:
-  workflow_run:
-    workflows: ["Ci"]
-    types:
-      - completed
+  pull_request:
+    branches:
+      - "master"
+  push:
+    branches:
+      - "master"
+    tags:
+      - "v*"
 
 jobs:
   push_to_registry:
@@ -12,9 +16,29 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
-      - name: Set version
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+      - name: Run tests first
+        run: go test -v ./...
+      - name: Docker meta
         id: meta
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+        uses: crazy-max/ghaction-docker-meta@v2
+        with:
+          images: hotpotatoc123/kvstore-server
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
@@ -28,4 +52,5 @@ jobs:
           push: true
           repository: hotpotatoc123/kvstore-server
           file: "./build/kvstore-server/Dockerfile"
-          tags: ${{ steps.meta.outputs.tag }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
