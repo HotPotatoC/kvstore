@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,8 +12,10 @@ import (
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/packet"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
+	"github.com/HotPotatoC/kvstore/server/stats"
 )
 
 // CLI represents the cli client
@@ -37,6 +40,19 @@ func New(addr string) *CLI {
 // Start runs the CLI client
 func (c *CLI) Start() {
 	go func() {
+		// Get server information on initial startup
+		stats := c.getServerInformation()
+
+		logo := "" +
+			" _               _                            _ _\n" +
+			"| |             | |                          | (_)\n" +
+			"| | ____   _____| |_ ___  _ __ ___ ______ ___| |_\n" +
+			"| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\______/ __| | |\n" +
+			"|   <  \\ V /\\__ \\ || (_) | | |  __/     | (__| | |\n" +
+			"|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|      \\___|_|_|\n\n"
+
+		fmt.Println(logo)
+		fmt.Printf("Connected to kvstore %s:%s server!\n\n", stats.Version, stats.Build)
 	start:
 		for {
 			fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
@@ -104,4 +120,30 @@ func (c *CLI) Start() {
 	<-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 	c.comm.Connection().Close()
 	os.Exit(0)
+}
+
+func (c *CLI) getServerInformation() *stats.Stats {
+	serverStats := new(stats.Stats)
+	infoPacket := packet.NewPacket(command.INFO, []byte(""))
+	infoBuffer, err := infoPacket.Encode()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.comm.Send(infoBuffer.Bytes())
+	if err != nil && err != io.EOF {
+		log.Fatal(err)
+	}
+
+	infoMessage, n, err := c.comm.Read()
+	if err != nil && err != io.EOF {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(infoMessage[:n], &serverStats)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return serverStats
 }
