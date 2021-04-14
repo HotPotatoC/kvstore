@@ -15,6 +15,7 @@ import (
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"github.com/HotPotatoC/kvstore/server/stats"
+	"github.com/fatih/color"
 	"github.com/peterh/liner"
 )
 
@@ -45,7 +46,8 @@ func (c *CLI) Start() {
 		stats := c.getServerInformation()
 
 		c.printLogo()
-		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", stats.Version, stats.Build)
+		yellow := color.New(color.FgHiYellow).SprintFunc()
+		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", yellow(stats.Version), yellow(stats.Build))
 	start:
 		for {
 			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.comm.Connection().RemoteAddr().String()))
@@ -73,12 +75,16 @@ func (c *CLI) Start() {
 					command.FLUSH,
 					command.INFO,
 				}
-
+				color.Set(color.FgHiYellow)
 				fmt.Println("NOTE: All commands are case-insensitive")
+				color.Unset()
+
+				commandColorize := color.New(color.FgBlue, color.Bold).SprintFunc()
+				argsColorize := color.New(color.FgWhite, color.Faint).SprintFunc()
 				for _, cmd := range commands {
 					fmt.Printf("- %s %s \n%s\n\n",
-						yellow(strings.ToUpper(cmd.String())),
-						dimmed(cmd.Args()),
+						commandColorize(strings.ToUpper(cmd.String())),
+						argsColorize(cmd.Args()),
 						cmd.Description())
 				}
 			// Exit out of the CLI
@@ -122,12 +128,14 @@ func (c *CLI) Start() {
 }
 
 func (c *CLI) printLogo() {
+	color.Set(color.FgHiBlue)
 	fmt.Println(" _               _                            _ _\n" +
 		"| |             | |                          | (_)\n" +
 		"| | ____   _____| |_ ___  _ __ ___ ______ ___| |_\n" +
 		"| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\______/ __| | |\n" +
 		"|   <  \\ V /\\__ \\ || (_) | | |  __/     | (__| | |\n" +
 		"|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|      \\___|_|_|\n\n")
+	color.Unset()
 }
 
 func (c *CLI) getServerInformation() *stats.Stats {

@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.1
+	github.com/fatih/color v1.10.0 // indirect
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/peterh/liner v1.2.1
