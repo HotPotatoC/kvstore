@@ -8,25 +8,25 @@ import (
 	"github.com/HotPotatoC/kvstore/packet"
 )
 
-func preprocess(cmd, args []byte) (*bytes.Buffer, error) {
+func preprocess(cmd string, args string) (*bytes.Buffer, error) {
 	var packet *packet.Packet
 	var err error
 
 	switch string(cmd) {
 	case command.SET.String():
-		if packet, err = set(args); err != nil {
+		if packet, err = set([]byte(args)); err != nil {
 			return nil, err
 		}
 	case command.SETEX.String():
-		if packet, err = setex(args); err != nil {
+		if packet, err = setex([]byte(args)); err != nil {
 			return nil, err
 		}
 	case command.GET.String():
-		if packet, err = get(args); err != nil {
+		if packet, err = get([]byte(args)); err != nil {
 			return nil, err
 		}
 	case command.DEL.String():
-		if packet, err = del(args); err != nil {
+		if packet, err = del([]byte(args)); err != nil {
 			return nil, err
 		}
 	case command.LIST.String():

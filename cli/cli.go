@@ -1,13 +1,12 @@
 package cli
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -16,12 +15,13 @@ import (
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"github.com/HotPotatoC/kvstore/server/stats"
+	"github.com/peterh/liner"
 )
 
 // CLI represents the cli client
 type CLI struct {
-	comm   *comm.Comm
-	reader *bufio.Reader
+	comm     *comm.Comm
+	terminal *liner.State
 }
 
 // New creates a new CLI client
@@ -32,46 +32,38 @@ func New(addr string) *CLI {
 	}
 
 	return &CLI{
-		comm:   comm,
-		reader: bufio.NewReader(os.Stdin),
+		comm:     comm,
+		terminal: newTerminal(),
 	}
 }
 
 // Start runs the CLI client
 func (c *CLI) Start() {
+	defer c.terminal.Close()
 	go func() {
 		// Get server information on initial startup
 		stats := c.getServerInformation()
 
-		logo := "" +
-			" _               _                            _ _\n" +
-			"| |             | |                          | (_)\n" +
-			"| | ____   _____| |_ ___  _ __ ___ ______ ___| |_\n" +
-			"| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\______/ __| | |\n" +
-			"|   <  \\ V /\\__ \\ || (_) | | |  __/     | (__| | |\n" +
-			"|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|      \\___|_|_|\n\n"
-
-		fmt.Println(logo)
-		fmt.Printf("Connected to kvstore %s:%s server!\n\n", stats.Version, stats.Build)
+		c.printLogo()
+		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", stats.Version, stats.Build)
 	start:
 		for {
-			fmt.Printf("%s> ", c.comm.Connection().RemoteAddr().String())
-
-			input, err := c.reader.ReadBytes('\n')
-			if err != nil && err != io.EOF {
+			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.comm.Connection().RemoteAddr().String()))
+			if err != nil {
+				if err == io.EOF {
+					c.comm.Conn.Close()
+					os.Exit(1)
+				}
 				log.Fatal(err)
 			}
 
-			raw := bytes.Split(input, []byte(" "))[0]
-			cmd := bytes.ToLower(
-				bytes.TrimSpace(raw))
-			args := bytes.TrimSpace(
-				bytes.TrimPrefix(input, raw))
+			c.terminal.AppendHistory(input)
+			cmd, args := c.parseCommand(input)
 
-			switch string(cmd) {
+			switch cmd {
 			// Displays all available commands with their args and description
 			case "help":
-				var commands = []command.Op{
+				commands := []command.Op{
 					command.SET,
 					command.SETEX,
 					command.GET,
@@ -89,7 +81,6 @@ func (c *CLI) Start() {
 						dimmed(cmd.Args()),
 						cmd.Description())
 				}
-				continue start
 			// Exit out of the CLI
 			case "exit":
 				c.comm.Conn.Close()
@@ -107,19 +98,36 @@ func (c *CLI) Start() {
 					log.Fatal(err)
 				}
 
-				msg, _, err := c.comm.Read()
+				msg, n, err := c.comm.Read()
 				if err != nil && err != io.EOF {
 					log.Fatal(err)
 				}
 
-				fmt.Print(string(msg))
+				fmt.Print(string(msg[:n]))
 			}
+
+			// Write history into tmp direcotry
+			f, err := os.Create(filepath.Join(os.TempDir(), ".kvstore-cli-history"))
+			if err != nil {
+				log.Printf("Failed creating history file %s\n", filepath.Join(os.TempDir(), ".kvstore-cli-history"))
+			}
+			c.terminal.WriteHistory(f)
+			_ = f.Close()
 		}
 	}()
 
 	<-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 	c.comm.Connection().Close()
 	os.Exit(0)
+}
+
+func (c *CLI) printLogo() {
+	fmt.Println(" _               _                            _ _\n" +
+		"| |             | |                          | (_)\n" +
+		"| | ____   _____| |_ ___  _ __ ___ ______ ___| |_\n" +
+		"| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\______/ __| | |\n" +
+		"|   <  \\ V /\\__ \\ || (_) | | |  __/     | (__| | |\n" +
+		"|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|      \\___|_|_|\n\n")
 }
 
 func (c *CLI) getServerInformation() *stats.Stats {
@@ -146,4 +154,14 @@ func (c *CLI) getServerInformation() *stats.Stats {
 	}
 
 	return serverStats
+}
+
+func (c *CLI) parseCommand(input string) (string, string) {
+	raw := strings.Fields(input)[0]
+	cmd := strings.ToLower(
+		strings.TrimSpace(raw))
+	args := strings.TrimSpace(
+		strings.TrimPrefix(input, raw))
+
+	return cmd, args
 }
