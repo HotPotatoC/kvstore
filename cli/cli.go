@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"syscall"
 
+	"github.com/HotPotatoC/kvstore/command"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 )
@@ -50,23 +52,52 @@ func (c *CLI) Start() {
 			args := bytes.TrimSpace(
 				bytes.TrimPrefix(input, raw))
 
-			preprocessed, err := preprocess(cmd, args)
-			if err != nil {
-				log.Println(err)
+			switch string(cmd) {
+			// Displays all available commands with their args and description
+			case "help":
+				var commands = []command.Op{
+					command.SET,
+					command.SETEX,
+					command.GET,
+					command.DEL,
+					command.LIST,
+					command.KEYS,
+					command.FLUSH,
+					command.INFO,
+				}
+
+				fmt.Println("NOTE: All commands are case-insensitive")
+				for _, cmd := range commands {
+					fmt.Printf("- %s %s \n%s\n\n",
+						yellow(strings.ToUpper(cmd.String())),
+						dimmed(cmd.Args()),
+						cmd.Description())
+				}
 				continue start
-			}
+			// Exit out of the CLI
+			case "exit":
+				c.comm.Conn.Close()
+				os.Exit(0)
+			// This is where commands are parsed and processed inputs are sent to the server
+			default:
+				preprocessed, err := preprocess(cmd, args)
+				if err != nil {
+					log.Println(err)
+					continue start
+				}
 
-			err = c.comm.Send(preprocessed.Bytes())
-			if err != nil && err != io.EOF {
-				log.Fatal(err)
-			}
+				err = c.comm.Send(preprocessed.Bytes())
+				if err != nil && err != io.EOF {
+					log.Fatal(err)
+				}
 
-			msg, _, err := c.comm.Read()
-			if err != nil && err != io.EOF {
-				log.Fatal(err)
-			}
+				msg, _, err := c.comm.Read()
+				if err != nil && err != io.EOF {
+					log.Fatal(err)
+				}
 
-			fmt.Print(string(msg))
+				fmt.Print(string(msg))
+			}
 		}
 	}()
 

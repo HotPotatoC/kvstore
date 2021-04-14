@@ -31,6 +31,34 @@ func (c Op) String() string {
 	return [...]string{"set", "setex", "get", "del", "list", "keys", "flush", "info"}[c]
 }
 
+// Args is the command required args. Used for information
+func (c Op) Args() string {
+	return [...]string{
+		"key value",
+		"key value [exp seconds]",
+		"key",
+		"key",
+		"",
+		"",
+		"",
+		"",
+	}[c]
+}
+
+// Description is the command description. Used for information
+func (c Op) Description() string {
+	return [...]string{
+		"Insert a new entry into the database",
+		"Insert a new expirable entry into the database",
+		"Return the data in the database with the matching key",
+		"Remove an entry in the database with the matching key",
+		"Display all the saved data in the database with the format [key] -> [value]",
+		"Display all the saved keys in the database",
+		"Delete all keys",
+		"Display the current stats of the server (OS, mem usage, total connections, etc.) in json format",
+	}[c]
+}
+
 // Command is the set of methods for a commmand
 type Command interface {
 	String() string
