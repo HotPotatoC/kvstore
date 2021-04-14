@@ -16,13 +16,18 @@ Want to expand this project? open up an [issue](https://github.com/HotPotatoC/kv
 You can install the binaries in the [releases](https://github.com/HotPotatoC/kvstore/releases) tab.
 
 
-### With [go](https://golang.org/dl/)
+**Using [docker](https://www.docker.com/)**
+```sh
+❯ docker run --name kvstore -d -p 7275:7275 hotpotatoc123/kvstore-server:latest
+```
+
+**Running with [go](https://golang.org/dl/)**
 ```sh
 # This will install the latest versions of the 2 commands 'kvstore-server' and 'kvstore-cli'
 ❯ GO111MODULE=on go get -u github.com/HotPotatoC/kvstore
 ```
 
-### Manual
+**Manual**
 
 ```sh
 ❯ git clone https://github.com/HotPotatoC/kvstore.git
@@ -60,9 +65,17 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 
 ```sh
 ❯ kvstore-cli
+ _               _                            _ _
+| |             | |                          | (_)
+| | ____   _____| |_ ___  _ __ ___ ______ ___| |_
+| |/ /\ \ / / __| __/ _ \| '__/ _ \______/ __| | |
+|   <  \ V /\__ \ || (_) | | |  __/     | (__| | |
+|_|\_\  \_/ |___/\__\___/|_|  \___|      \___|_|_|
+
+
+🚀 Connected to kvstore v1.0.0:6ccb99fc20a525ceb8ca384bd2b3967337661874 server!
 
 127.0.0.1:7275> info
-0.000704s
 {
   "version": "v1.0.0",
   "build": "6ccb99fc20a525ceb8ca384bd2b3967337661874",
