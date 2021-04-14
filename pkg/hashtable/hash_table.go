@@ -172,7 +172,7 @@ func (ht *HashTable) insert(k string, v string, expiresAfter int) {
 		entry = ht.newEntry(k, v)
 	}
 
-	if ht.buckets[index] == nil {
+	if ht.buckets[index] == nil || ht.buckets[index].Head == nil {
 		ht.buckets[index] = &Bucket{}
 		entry.Next = ht.buckets[index].Head
 		ht.buckets[index].Head = entry
@@ -180,13 +180,12 @@ func (ht *HashTable) insert(k string, v string, expiresAfter int) {
 		return
 	}
 
-	if ht.buckets[index].Head.Key == k {
-		ht.buckets[index].Head.Value = v
-		return
-	}
-
 	for iterator := ht.buckets[index].Head; iterator != nil; iterator = iterator.Next {
 		if iterator.Next == nil {
+			if iterator.Key == k {
+				iterator.Value = v
+				return
+			}
 			entry.Next = ht.buckets[index].Head
 			ht.buckets[index].Head = entry
 			break

@@ -56,6 +56,32 @@ func TestSet(t *testing.T) {
 	}
 }
 
+func TestInsertWithFormerKey(t *testing.T) {
+	ht := populate(4)
+	if ht.Size() != 4 {
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 4, ht.Size())
+	}
+
+	ht.Set("my-key", "value")
+	if ht.Size() != 5 {
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 5, ht.Size())
+	}
+
+	ht.Remove("my-key")
+	if ht.Size() != 4 {
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 3, ht.Size())
+	}
+
+	ht.Set("my-key", "value")
+	if ht.Size() != 5 {
+		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 5, ht.Size())
+	}
+
+	if !ht.Exist("my-key") {
+		t.Error("Failed TestSet -> Expected my-key to exists | Got empty")
+	}
+}
+
 func TestSetEX(t *testing.T) {
 	ht := populate(4)
 	if ht.Size() != 4 {
