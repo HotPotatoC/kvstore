@@ -14,6 +14,9 @@ var (
 	// ErrMissingKeyValueArg is thrown when the client did not send both the key and value arguments for the command
 	ErrMissingKeyValueArg = errors.New("missing key/value arguments")
 
+	// ErrInvalidArgLength is thrown when the client provides missing arguments or does not satisfy the amount of required args for the command
+	ErrInvalidArgLength = errors.New("missing arguments")
+
 	// ErrCommandDoesNotExist is thrown when the command does not exists in the command package
 	ErrCommandDoesNotExist = errors.New("command does not exists")
 

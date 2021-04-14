@@ -3,6 +3,7 @@ package hashtable_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
@@ -52,6 +53,27 @@ func TestSet(t *testing.T) {
 	ht.Set("my-key", "value")
 	if ht.Size() != 5 {
 		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 5, ht.Size())
+	}
+}
+
+func TestSetEX(t *testing.T) {
+	ht := populate(4)
+	if ht.Size() != 4 {
+		t.Errorf("Failed TestSetEX -> Expected Size: %d | Got: %d", 4, ht.Size())
+	}
+
+	ht.SetEX("my-key", "value", 5)
+	if ht.Size() != 5 {
+		t.Errorf("Failed TestSetEX -> Expected Size: %d | Got: %d", 5, ht.Size())
+	}
+	time.Sleep(2 * time.Second)
+	if !ht.Exist("my-key") {
+		t.Error("Failed TestSetEX -> Expected Key to exists | Got empty")
+	}
+
+	time.Sleep(4 * time.Second)
+	if ht.Exist("my-key") {
+		t.Error("Failed TestSetEX -> Expected Key to be expired | Got a key")
 	}
 }
 

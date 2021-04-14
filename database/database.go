@@ -1,11 +1,16 @@
 package database
 
-import "github.com/HotPotatoC/kvstore/pkg/hashtable"
+import (
+	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+)
 
 // Store is the representation of a key-value pair database
 type Store interface {
 	// Set inserts a key-value data
 	Set(key string, value string)
+
+	// SetEX inserts an expirable key-value data
+	SetEX(key string, value string, expiresAfter int)
 
 	// Get returns the value of the given key
 	Get(key string) string
@@ -39,6 +44,10 @@ func New() Store {
 
 func (d *database) Set(key string, value string) {
 	d.table.Set(key, value)
+}
+
+func (d *database) SetEX(key string, value string, expiresAfter int) {
+	d.table.SetEX(key, value, expiresAfter)
 }
 
 func (d *database) Get(key string) string {

@@ -11,6 +11,8 @@ type Op int
 const (
 	// SET inserts a new entry into the database
 	SET Op = iota
+	// SETEX inserts a new expirable entry into the database
+	SETEX
 	// GET returns the data in the database with the matching key
 	GET
 	// DEL remove an entry in the database with the matching key
@@ -26,7 +28,7 @@ const (
 )
 
 func (c Op) String() string {
-	return [...]string{"set", "get", "del", "list", "keys", "flush", "info"}[c]
+	return [...]string{"set", "setex", "get", "del", "list", "keys", "flush", "info"}[c]
 }
 
 // Command is the set of methods for a commmand
@@ -41,6 +43,8 @@ func New(db database.Store, stats *stats.Stats, cmd Op) Command {
 	switch cmd {
 	case SET:
 		command = makeSetCommand(db)
+	case SETEX:
+		command = makeSetEXCommand(db)
 	case GET:
 		command = makeGetCommand(db)
 	case DEL:

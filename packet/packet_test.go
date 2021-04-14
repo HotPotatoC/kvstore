@@ -16,14 +16,14 @@ func TestPacketEncode(t *testing.T) {
 		t.Errorf("Failed TestPacketEncode -> Expected: nil | Got: %v ", err)
 	}
 
-	expected := []byte{0, 1, 0, 0, 0, 3, 107, 101, 121}
+	expected := []byte{0, 2, 0, 0, 0, 3, 107, 101, 121}
 	if !bytes.Equal(buffer.Bytes(), expected) {
 		t.Errorf("Failed TestPacketEncode -> Expected: %s | Got: %s ", expected, buffer.Bytes())
 	}
 }
 
 func TestPacketDecode(t *testing.T) {
-	buf := []byte{0, 1, 0, 0, 0, 3, 107, 101, 121}
+	buf := []byte{0, 2, 0, 0, 0, 3, 107, 101, 121}
 
 	var packet packet.Packet
 

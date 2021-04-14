@@ -3,6 +3,7 @@ package database_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/HotPotatoC/kvstore/database"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
@@ -53,6 +54,27 @@ func TestSet(t *testing.T) {
 	db.Set("my-key", "value")
 	if db.Size() != 5 {
 		t.Errorf("Failed TestSet -> Expected Size: %d | Got: %d", 5, db.Size())
+	}
+}
+
+func TestSetEX(t *testing.T) {
+	db := populate(4)
+	if db.Size() != 4 {
+		t.Errorf("Failed TestSetEX -> Expected Size: %d | Got: %d", 4, db.Size())
+	}
+
+	db.SetEX("my-key", "value", 5)
+	if db.Size() != 5 {
+		t.Errorf("Failed TestSetEX -> Expected Size: %d | Got: %d", 5, db.Size())
+	}
+	time.Sleep(2 * time.Second)
+	if !db.Exist("my-key") {
+		t.Error("Failed TestSetEX -> Expected Key to exists | Got empty")
+	}
+
+	time.Sleep(4 * time.Second)
+	if db.Exist("my-key") {
+		t.Error("Failed TestSetEX -> Expected Key to be expired | Got a key")
 	}
 }
 

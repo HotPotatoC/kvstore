@@ -2,6 +2,7 @@ package hashtable
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cespare/xxhash/v2"
 )
@@ -27,9 +28,12 @@ type Bucket struct {
 
 // Entry represents an entry inside the bucket
 type Entry struct {
-	Key   string
-	Value string
-	Next  *Entry
+	Key          string
+	Value        string
+	CreatedAt    time.Time
+	ShouldExpire bool
+	ExpireAfter  int
+	Next         *Entry
 }
 
 // New returns a new Hash Table
@@ -54,11 +58,35 @@ func (ht *HashTable) Set(k string, v string) {
 	defer ht.mtx.Unlock()
 
 	initialSize := ht.nSize
-	ht.insert(k, v)
+	ht.insert(k, v, 0)
 	count := ht.nSize - initialSize
 	if count > 0 {
 		ht.verifyLoadFactor()
 	}
+}
+
+// SetEX inserts a new expirable key-value pair item into the hash table
+func (ht *HashTable) SetEX(k string, v string, expiresAfter int) {
+	ht.mtx.Lock()
+	initialSize := ht.nSize
+	ht.insert(k, v, expiresAfter)
+	count := ht.nSize - initialSize
+	if count > 0 {
+		ht.verifyLoadFactor()
+	}
+	ht.mtx.Unlock()
+
+	time.AfterFunc(time.Duration(expiresAfter)*time.Second, func() {
+		ht.mtx.Lock()
+		if entry := ht.lookup(k); entry.ShouldExpire {
+			initialSize := ht.nSize
+			ht.delete(k)
+			if count := initialSize - ht.nSize; count > 0 {
+				ht.verifyLoadFactor()
+			}
+		}
+		ht.mtx.Unlock()
+	})
 }
 
 // Get returns the value of the given key
@@ -71,6 +99,11 @@ func (ht *HashTable) Get(k string) string {
 	if result == nil {
 		return ""
 	}
+
+	if result.ShouldExpire && time.Since(result.CreatedAt) > time.Duration(result.ExpireAfter)*time.Second {
+		return ""
+	}
+
 	return result.Value
 }
 
@@ -129,9 +162,16 @@ func (ht *HashTable) Size() int {
 	return ht.nSize
 }
 
-func (ht *HashTable) insert(k string, v string) {
+func (ht *HashTable) insert(k string, v string, expiresAfter int) {
+	var entry *Entry
 	index := ht.hashkey(k, len(ht.buckets))
-	entry := ht.newEntry(k, v)
+
+	if expiresAfter > 0 {
+		entry = ht.newExpirableEntry(k, v, expiresAfter)
+	} else {
+		entry = ht.newEntry(k, v)
+	}
+
 	if ht.buckets[index] == nil {
 		ht.buckets[index] = &Bucket{}
 		entry.Next = ht.buckets[index].Head
@@ -233,7 +273,7 @@ func (ht *HashTable) updateCapacity(size int) {
 	newTable := newHashTable(size)
 	for _, bucket := range ht.buckets {
 		for bucket != nil && bucket.Head != nil {
-			newTable.insert(bucket.Head.Key, bucket.Head.Value)
+			newTable.insert(bucket.Head.Key, bucket.Head.Value, int(bucket.Head.ExpireAfter))
 			bucket.Head = bucket.Head.Next
 		}
 	}
@@ -242,9 +282,23 @@ func (ht *HashTable) updateCapacity(size int) {
 
 func (ht *HashTable) newEntry(key, value string) *Entry {
 	return &Entry{
-		Key:   key,
-		Value: value,
-		Next:  nil,
+		Key:          key,
+		Value:        value,
+		CreatedAt:    time.Now(),
+		ShouldExpire: false,
+		ExpireAfter:  0,
+		Next:         nil,
+	}
+}
+
+func (ht *HashTable) newExpirableEntry(key, value string, expiresAfter int) *Entry {
+	return &Entry{
+		Key:          key,
+		Value:        value,
+		CreatedAt:    time.Now(),
+		ShouldExpire: true,
+		ExpireAfter:  expiresAfter,
+		Next:         nil,
 	}
 }
 

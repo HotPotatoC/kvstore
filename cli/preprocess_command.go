@@ -17,6 +17,10 @@ func preprocess(cmd, args []byte) (*bytes.Buffer, error) {
 		if packet, err = set(args); err != nil {
 			return nil, err
 		}
+	case command.SETEX.String():
+		if packet, err = setex(args); err != nil {
+			return nil, err
+		}
 	case command.GET.String():
 		if packet, err = get(args); err != nil {
 			return nil, err
@@ -58,6 +62,13 @@ func set(args []byte) (*packet.Packet, error) {
 		return nil, command.ErrMissingKeyValueArg
 	}
 	return packet.NewPacket(command.SET, args), nil
+}
+
+func setex(args []byte) (*packet.Packet, error) {
+	if len(bytes.Split(args, []byte(" "))) < 3 {
+		return nil, command.ErrInvalidArgLength
+	}
+	return packet.NewPacket(command.SETEX, args), nil
 }
 
 func get(args []byte) (*packet.Packet, error) {

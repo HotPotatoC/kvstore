@@ -86,15 +86,16 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 
 # Command Table
 
-| Command (Case insensitive) | Description                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------ |
-| SET [key] [value]          | Inserts a new entry into the database                                                            |
-| GET [key]                  | Returns the data in the database with the matching key                                           |
-| DEL [key]                  | Remove an entry in the database with the matching key                                            |
-| LIST                       | Displays all the saved data in the database with the format `[key] -> [value]`                   |
-| KEYS                       | Displays all the saved keys in the database                                                      |
-| FLUSH                      | Delete all keys                                                                                  |
-| INFO                       | Displays the current stats of the server (OS, mem usage, total connections, etc.) in json format |
+| Command (Case insensitive)    | Description                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| SET [key] [value]             | Insert a new entry into the database                                                            |
+| SETEX [key] [value] [seconds] | Insert a new expirable entry into the database                                                  |
+| GET [key]                     | Return the data in the database with the matching key                                           |
+| DEL [key]                     | Remove an entry in the database with the matching key                                           |
+| LIST                          | Display all the saved data in the database with the format `[key] -> [value]`                   |
+| KEYS                          | Display all the saved keys in the database                                                      |
+| FLUSH                         | Delete all keys                                                                                 |
+| INFO                          | Display the current stats of the server (OS, mem usage, total connections, etc.) in json format |
 
 # Contributing
 
