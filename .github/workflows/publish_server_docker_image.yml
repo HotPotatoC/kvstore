@@ -29,8 +29,11 @@ jobs:
           fi
       - name: Run tests first
         run: go test -v ./...
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
       - name: Docker meta
-        id: meta
+        id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v2
         with:
           images: hotpotatoc123/kvstore-server
@@ -53,6 +56,9 @@ jobs:
           context: .
           push: true
           repository: hotpotatoc123/kvstore-server
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
           file: "./build/kvstore-server/Dockerfile"
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT=${{ env.GITHUB_SHA }}
+            VERSION=${{ steps.tag.outputs.tag }}
