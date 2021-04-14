@@ -30,6 +30,7 @@ jobs:
       - name: Run tests first
         run: go test -v ./...
       - name: Get tag
+        if: contains(github.ref, 'refs/tags/')
         id: tag
         uses: dawidd6/action-get-tag@v1
       - name: Docker meta
