@@ -16,6 +16,7 @@ import (
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"github.com/HotPotatoC/kvstore/server/stats"
+	"github.com/fatih/color"
 	"go.uber.org/zap"
 )
 
@@ -114,16 +115,31 @@ func (s *Server) startupMessage() {
 }
 
 func (s *Server) printLogo() {
-	logo := "\t _               _\n" +
-		"\t| |             | |\n" +
-		"\t| | ____   _____| |_ ___  _ __ ___\n" +
-		"\t| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\ \n" +
-		"\t|   <  \\ V /\\_  \\ || (_) | | |  __/\n" +
-		"\t|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|\n\n"
+	yellow := color.New(color.FgYellow).SprintFunc()
+	white := color.New(color.FgWhite, color.Bold).SprintFunc()
+	var logo string
+	logo += "\n"
+	logo += yellow("       .\n")
+	logo += yellow("   .-\"   \"-\n")
+	logo += yellow(" .n         \"w\n")
+	logo += yellow(" |  ^~   ⌐\"  |\n")
+	logo += yellow(" |     ╠     |        .\n")
+	logo += yellow(" |     ╡    ⌐|    .-\"   \"-\n")
+	logo += yellow(" .╜\"-. ╡ .─\"  . #¬        .┴|\n")
+	logo += yellow(" |  ^~ \".⌐'.-\"  ╫   ^¬.-\"   |\n")
+	logo += yellow(" |     | #¬     |     |     |\n")
 
-	details := "\tStarted KVStore %s server\n" +
-		"\t    Port: %d\n" +
-		"\t    PID: %d\n\n"
+	logo += yellow(" |     | |  ^¬ .╝.    |    ⌐\"\n")
+	logo += fmt.Sprintln(yellow(" .╜\"-. | |    |    \"-.|,^"), white("        Started kvstore %s server"))
+	logo += fmt.Sprintln(yellow(" |  ^¬ \" ╜    |     ,"), white("              Port: %d"))
+	logo += fmt.Sprintln(yellow(" |     | m\"\"-.| ,─\".X ."), white("            PID: %d"))
+	logo += yellow(" |     | |  ^¬  ⌐'.⌐\"   \"─\n")
 
-	fmt.Printf(logo+details, s.Version, s.TCPPort, os.Getpid())
+	logo += yellow("  \" ─. | |    | ╡╜        .╜|\n")
+	logo += yellow("       \" |    | |   ^¬.-\"   |\n")
+	logo += yellow("          \" ─.| |     |     |\n")
+	logo += yellow("                ╙.    |    ⌐*\n")
+	logo += yellow("                   \"─.|,^\n\n")
+
+	fmt.Printf(logo, s.Version, s.TCPPort, os.Getpid())
 }

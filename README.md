@@ -1,3 +1,5 @@
+![kvstore](.github/kvstore.png)
+
 # **kvstore**
 
 **kvstore** is an in-memory database server with the key-value model.
@@ -44,34 +46,37 @@ Running the kvstore server using the `kvstore-server` command
 ```sh
 ❯ kvstore-server
 
-2021-04-13T15:52:21.548+0700    KVStore is starting...
-2021-04-13T15:52:21.549+0700    version=v1.0.0 build=6ccb99fc20a525ceb8ca384bd2b3967337661874 pid=1
-2021-04-13T15:52:21.549+0700    starting tcp server...
-         _               _
-        | |             | |
-        | | ____   _____| |_ ___  _ __ ___
-        | |/ /\ \ / / __| __/ _ \| '__/ _ \
-        |   <  \ V /\_  \ || (_) | | |  __/
-        |_|\_\  \_/ |___/\__\___/|_|  \___|
+2021-04-15T17:08:10.177+0700    KVStore is starting...
+2021-04-15T17:08:10.177+0700    version=v1.0.0 build=6ccb99fc20a525ceb8ca384bd2b3967337661874 pid=22183
+2021-04-15T17:08:10.177+0700    starting tcp server...
 
-        Started KVStore v1.0.0 server
-            Port: 7275
-            PID: 1
+       .
+   .-"   "-
+ .n         "w
+ |  ^~   ⌐"  |
+ |     ╠     |        .
+ |     ╡    ⌐|    .-"   "-
+ .╜"-. ╡ .─"  . #¬        .┴|
+ |  ^~ ".⌐'.-"  ╫   ^¬.-"   |
+ |     | #¬     |     |     |
+ |     | |  ^¬ .╝.    |    ⌐"
+ .╜"-. | |    |    "-.|,^         Started kvstore v1.0.0 server
+ |  ^¬ " ╜    |     ,               Port: 7275
+ |     | m""-.| ,─".X .             PID: 22183
+ |     | |  ^¬  ⌐'.⌐"   "─
+  " ─. | |    | ╡╜        .╜|
+       " |    | |   ^¬.-"   |
+          " ─.| |     |     |
+                ╙.    |    ⌐*
+                   "─.|,^
 
-2021-04-13T15:52:21.549+0700    Ready to accept connections.
+2021-04-15T17:08:10.178+0700    Ready to accept connections.
 ```
 
 To interact with the server, on another terminal run the `kvstore-cli` command
 
 ```sh
 ❯ kvstore-cli
- _               _                            _ _
-| |             | |                          | (_)
-| | ____   _____| |_ ___  _ __ ___ ______ ___| |_
-| |/ /\ \ / / __| __/ _ \| '__/ _ \______/ __| | |
-|   <  \ V /\__ \ || (_) | | |  __/     | (__| | |
-|_|\_\  \_/ |___/\__\___/|_|  \___|      \___|_|_|
-
 
 🚀 Connected to kvstore v1.0.0:6ccb99fc20a525ceb8ca384bd2b3967337661874 server!
 

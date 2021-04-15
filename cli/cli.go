@@ -45,7 +45,6 @@ func (c *CLI) Start() {
 		// Get server information on initial startup
 		stats := c.getServerInformation()
 
-		c.printLogo()
 		yellow := color.New(color.FgHiYellow).SprintFunc()
 		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", yellow(stats.Version), yellow(stats.Build))
 	start:
@@ -125,17 +124,6 @@ func (c *CLI) Start() {
 	<-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
 	c.comm.Connection().Close()
 	os.Exit(0)
-}
-
-func (c *CLI) printLogo() {
-	color.Set(color.FgHiBlue)
-	fmt.Println(" _               _                            _ _\n" +
-		"| |             | |                          | (_)\n" +
-		"| | ____   _____| |_ ___  _ __ ___ ______ ___| |_\n" +
-		"| |/ /\\ \\ / / __| __/ _ \\| '__/ _ \\______/ __| | |\n" +
-		"|   <  \\ V /\\__ \\ || (_) | | |  __/     | (__| | |\n" +
-		"|_|\\_\\  \\_/ |___/\\__\\___/|_|  \\___|      \\___|_|_|\n\n")
-	color.Unset()
 }
 
 func (c *CLI) getServerInformation() *stats.Stats {
