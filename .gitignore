@@ -13,6 +13,7 @@ node_modules
 *.so
 
 # Testing
+*.log
 *.test
 *.tmp
 .coverage
