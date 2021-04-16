@@ -49,7 +49,6 @@ func (c *CLI) Start() {
 
 		yellow := color.New(color.FgHiYellow).SprintFunc()
 		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", yellow(stats.Version), yellow(stats.Build))
-	start:
 		for {
 			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.comm.Connection().RemoteAddr().String()))
 			if err != nil {
@@ -97,7 +96,7 @@ func (c *CLI) Start() {
 				preprocessed, err := preprocess(cmd, args)
 				if err != nil {
 					log.Println(err)
-					continue start
+					continue
 				}
 
 				err = c.comm.Send(preprocessed.Bytes())
