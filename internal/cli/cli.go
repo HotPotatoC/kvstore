@@ -59,6 +59,10 @@ func (c *CLI) Start() {
 				log.Fatal(err)
 			}
 
+			if input == "" {
+				continue
+			}
+
 			c.terminal.AppendHistory(input)
 			cmd, args := c.parseCommand(input)
 
@@ -104,12 +108,12 @@ func (c *CLI) Start() {
 					log.Fatal(err)
 				}
 
-				msg, n, err := c.comm.Read()
+				msg, _, err := c.comm.Read()
 				if err != nil && err != io.EOF {
 					log.Fatal(err)
 				}
 
-				fmt.Print(string(msg[:n]))
+				fmt.Print(string(msg))
 			}
 
 			// Write history into tmp direcotry
