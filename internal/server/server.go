@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
@@ -25,6 +26,7 @@ type Server struct {
 	db     database.Store
 	log    *zap.SugaredLogger
 	server *tcp.Server
+	mtx    sync.RWMutex
 	// Info
 	*stats.Stats
 }
@@ -65,17 +67,23 @@ func (s *Server) Start(host string, port int) {
 }
 
 func (s *Server) onConnected(conn net.Conn) {
+	s.mtx.Lock()
 	// Increment connected clients
 	s.ConnectedCount++
 	s.TotalConnectionsCount++
+	s.mtx.Unlock()
 }
 
 func (s *Server) onDisconnected(conn net.Conn) {
+	s.mtx.Lock()
 	// Decrement connected clients
 	s.ConnectedCount--
+	s.mtx.Unlock()
 }
 
 func (s *Server) onMessage(conn net.Conn, msg []byte) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	var packet packet.Packet
 	buffer := bytes.NewBuffer(msg)
 
