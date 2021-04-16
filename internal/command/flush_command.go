@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 type flushCommand struct {

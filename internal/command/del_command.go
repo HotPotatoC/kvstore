@@ -3,7 +3,7 @@ package command
 import (
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 type delCommand struct {

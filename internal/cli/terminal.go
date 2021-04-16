@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/peterh/liner"
 )
 

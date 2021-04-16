@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/command"
-	"github.com/HotPotatoC/kvstore/packet"
+	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/internal/packet"
 )
 
 func preprocess(cmd string, args string) (*bytes.Buffer, error) {

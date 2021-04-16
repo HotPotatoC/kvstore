@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 	"github.com/HotPotatoC/kvstore/pkg/hashtable"
 )
 

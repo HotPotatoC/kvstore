@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/internal/command"
 )
 
 func TestCommandLIST(t *testing.T) {

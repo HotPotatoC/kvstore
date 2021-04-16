@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 type keysCommand struct {

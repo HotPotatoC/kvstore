@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/HotPotatoC/kvstore/command"
+	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/pkg/tlv"
 )
 

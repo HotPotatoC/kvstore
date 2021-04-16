@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/HotPotatoC/kvstore/command"
-	"github.com/HotPotatoC/kvstore/server/stats"
+	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/internal/server/stats"
 )
 
 func TestCommandINFO(t *testing.T) {

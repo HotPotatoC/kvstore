@@ -8,14 +8,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/HotPotatoC/kvstore/command"
-	"github.com/HotPotatoC/kvstore/database"
-	"github.com/HotPotatoC/kvstore/packet"
+	"github.com/HotPotatoC/kvstore/internal/command"
+	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/packet"
+	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/pkg/tcp"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
-	"github.com/HotPotatoC/kvstore/server/stats"
 	"github.com/fatih/color"
 	"go.uber.org/zap"
 )

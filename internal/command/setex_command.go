@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 type setEXCommand struct {

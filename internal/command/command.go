@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/database"
-	"github.com/HotPotatoC/kvstore/server/stats"
+	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/server/stats"
 )
 
 // Op represents the command type

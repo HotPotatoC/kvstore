@@ -3,7 +3,7 @@ package command_test
 import (
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/database"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 
