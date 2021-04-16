@@ -1,7 +1,7 @@
 BINARY_DIR := .bin/
 
 APP_NAME=kvstore
-VERSION?=v0.20.5
+VERSION?=v0.20.6
 BUILD=$(shell git rev-parse HEAD)
 
 VERSION_PACKAGE=github.com/HotPotatoC/kvstore/version
