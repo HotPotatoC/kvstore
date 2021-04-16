@@ -10,5 +10,5 @@ require (
 	github.com/peterh/liner v1.2.1
 	github.com/rivo/uniseg v0.2.0 // indirect
 	go.uber.org/zap v1.16.0
-	golang.org/x/sys v0.0.0-20210414055047-fe65e336abe0 // indirect
+	golang.org/x/sys v0.0.0-20210415045647-66c3f260301c // indirect
 )
