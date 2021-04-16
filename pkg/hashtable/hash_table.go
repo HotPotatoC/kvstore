@@ -120,19 +120,12 @@ func (ht *HashTable) Remove(k string) int {
 	return count
 }
 
-// Flush deletes all items in the table
+// Flush clears the bucket
 func (ht *HashTable) Flush() {
-	ch := make(chan *Entry)
-	go func() {
-		ht.mtx.RLock()
-		ht.iterate(ch)
-		ht.mtx.RUnlock()
-	}()
-
-	for entry := range ch {
-		ht.delete(entry.Key)
-	}
-
+	ht.mtx.Lock()
+	defer ht.mtx.Unlock()
+	ht.buckets = make([]*Bucket, DefaultSize)
+	ht.nSize = 0
 	ht.verifyLoadFactor()
 }
 

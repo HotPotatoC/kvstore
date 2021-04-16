@@ -2,6 +2,7 @@ package hashtable_test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -168,6 +169,105 @@ func TestFlush_100000(t *testing.T) {
 	ht.Flush()
 	if ht.Size() != 0 {
 		t.Errorf("Failed TestFlush_100000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlushConcurrently_100(t *testing.T) {
+	ht := populate(100)
+	if ht.Size() != 100 {
+		t.Errorf("Failed TestFlushConcurrently_100 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	wg.Wait()
+
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlushConcurrently_100 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlushConcurrently_1000(t *testing.T) {
+	ht := populate(1000)
+	if ht.Size() != 1000 {
+		t.Errorf("Failed TestFlushConcurrently_1000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	wg.Wait()
+
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlushConcurrently_1000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlushConcurrently_10000(t *testing.T) {
+	ht := populate(10000)
+	if ht.Size() != 10000 {
+		t.Errorf("Failed TestFlushConcurrently_10000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	wg.Wait()
+
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlushConcurrently_10000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlushConcurrently_100000(t *testing.T) {
+	ht := populate(100000)
+	if ht.Size() != 100000 {
+		t.Errorf("Failed TestFlushConcurrently_100000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	wg.Wait()
+
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlushConcurrently_100000 -> Expected Size: %d | Got: %d", 0, ht.Size())
+	}
+}
+
+func TestFlushConcurrently_TwoThreads_100000(t *testing.T) {
+	ht := populate(100000)
+	if ht.Size() != 100000 {
+		t.Errorf("Failed TestFlushConcurrently_TwoThreads_100000 -> Expected Size: %d | Got: %d", 100000, ht.Size())
+	}
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	go func() {
+		defer wg.Done()
+		ht.Flush()
+	}()
+	wg.Wait()
+
+	if ht.Size() != 0 {
+		t.Errorf("Failed TestFlushConcurrently_TwoThreads_100000 -> Expected Size: %d | Got: %d", 0, ht.Size())
 	}
 }
 

@@ -34,13 +34,6 @@ func BenchmarkGet(b *testing.B) {
 	}
 }
 
-func BenchmarkFlush(b *testing.B) {
-	b.StopTimer()
-	ht := populate(b.N)
-	b.StartTimer()
-	ht.Flush()
-}
-
 func BenchmarkIter(b *testing.B) {
 	b.StopTimer()
 	ht := populate(b.N)
