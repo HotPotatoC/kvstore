@@ -44,7 +44,9 @@ func TestComm(t *testing.T) {
 	}()
 
 	time.Sleep(500 * time.Millisecond)
-	comm, err := comm.New("127.0.0.1:7222")
+	comm, err := comm.New(&comm.Config{
+		Addr: "localhost:7222",
+	})
 	if err != nil {
 		t.Errorf("Expected nil but got an error: %v", err)
 	}

@@ -22,7 +22,7 @@ type Server struct {
 }
 
 func init() {
-	log = logger.NewLogger()
+	log = logger.New()
 }
 
 // New creates a new tcp server
@@ -70,7 +70,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		log.Fatalf("failed setting connection read deadline: %v", err)
 	}
 
-	buffer := make([]byte, 1024 * 36)
+	buffer := make([]byte, 2048)
 
 	for {
 		n, err := conn.Read(buffer)

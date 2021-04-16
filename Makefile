@@ -4,10 +4,12 @@ APP_NAME=kvstore
 VERSION?=v0.20.1
 BUILD=$(shell git rev-parse HEAD)
 
+VERSION_PACKAGE=github.com/HotPotatoC/kvstore/version
+
 GO=go
 GOOSS=darwin linux windows freebsd netbsd openbsd dragonfly
 GOARCHS=386 arm arm64 amd64
-LDFLAGS=-ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${BUILD}'"
+GO_LDFLAGS=-ldflags="-s -w -X '${VERSION_PACKAGE}.Version=${VERSION}' -X '${VERSION_PACKAGE}.Build=${BUILD}'"
 GO_COVERAGE_DIR=.coverage
 
 DOCKER_SERVER_REPO_NAME=hotpotatoc123/kvstore-server
@@ -55,7 +57,7 @@ clean: ## Deletes all compiled / executable files
 
 .PHONY: install
 install: ## Installs the package
-	@$(GO) install ${LDFLAGS} ./...
+	@$(GO) install ${GO_LDFLAGS} ./...
 
 .PHONY: install-deps
 install-deps: ## Install dependencies
@@ -63,31 +65,30 @@ install-deps: ## Install dependencies
 
 .PHONY: server
 server: ## Compile the server
-	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server cmd/$(APP_NAME)-server/main.go
+	@$(GO) build $(GO_LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server cmd/$(APP_NAME)-server/main.go
 
 .PHONY: cli
 cli: ## Compile the cli
-	@$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli cmd/$(APP_NAME)-cli/main.go
+	@$(GO) build $(GO_LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli cmd/$(APP_NAME)-cli/main.go
 
 .PHONY: all-server
 all-server: ## Cross-compile the server
 	@$(foreach GOOS, $(GOOSS),\
 		$(foreach GOARCH, $(GOARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-server/main.go)))
+			$(GO) build $(GO_LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_server-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-server/main.go)))
 
 .PHONY: all-cli
 all-cli: ## Cross-compile the cli
 	@$(foreach GOOS, $(GOOSS),\
 		$(foreach GOARCH, $(GOARCHS),\
 			$(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH);\
-			$(GO) build $(LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-cli/main.go)))
+			$(GO) build $(GO_LDFLAGS) -v -o $(BINARY_DIR)/$(APP_NAME)-$(VERSION)_cli-$(GOOS)-$(GOARCH) cmd/$(APP_NAME)-cli/main.go)))
 
 .PHONY: docker-server
 docker-server: ## Builds the kvstore server docker image
 	@docker build --rm -t $(DOCKER_SERVER_IMG) \
 		-f build/kvstore-server/Dockerfile \
-		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \
 		--no-cache .
@@ -97,7 +98,6 @@ docker-server: ## Builds the kvstore server docker image
 docker-cli: ## Builds the kvstore cli app docker image
 	@docker build --rm -t $(DOCKER_CLI_IMG) \
 		-f build/kvstore-cli/Dockerfile \
-		--build-arg LDFLAGS=$(LDFLAGS) \
 		--build-arg GIT_COMMIT=$(BUILD) \
 		--build-arg VERSION=$(VERSION) \
 		--no-cache .

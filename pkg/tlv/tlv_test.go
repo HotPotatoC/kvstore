@@ -8,8 +8,8 @@ import (
 )
 
 func TestReadWriteTLV(t *testing.T) {
-	buf := new(bytes.Buffer)
-	w := tlv.NewWriter(buf, tlv.DefaultTLVCodec)
+	var buf bytes.Buffer
+	w := tlv.NewWriter(&buf, tlv.DefaultTLVCodec)
 
 	err := w.Write(tlv.NewRecord([]byte("hello, world!"), 0x8))
 	if err != nil {

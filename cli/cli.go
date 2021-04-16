@@ -27,7 +27,9 @@ type CLI struct {
 
 // New creates a new CLI client
 func New(addr string) *CLI {
-	comm, err := comm.New(addr)
+	comm, err := comm.New(&comm.Config{
+		Addr: addr,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +54,7 @@ func (c *CLI) Start() {
 			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.comm.Connection().RemoteAddr().String()))
 			if err != nil {
 				if err == io.EOF {
-					c.comm.Conn.Close()
+					c.comm.Connection().Close()
 					os.Exit(1)
 				}
 				log.Fatal(err)
@@ -88,7 +90,7 @@ func (c *CLI) Start() {
 				}
 			// Exit out of the CLI
 			case "exit":
-				c.comm.Conn.Close()
+				c.comm.Connection().Close()
 				os.Exit(0)
 			// This is where commands are parsed and processed inputs are sent to the server
 			default:
@@ -127,7 +129,7 @@ func (c *CLI) Start() {
 }
 
 func (c *CLI) getServerInformation() *stats.Stats {
-	serverStats := new(stats.Stats)
+	var serverStats stats.Stats
 	infoPacket := packet.NewPacket(command.INFO, []byte(""))
 	infoBuffer, err := infoPacket.Encode()
 	if err != nil {
@@ -149,7 +151,7 @@ func (c *CLI) getServerInformation() *stats.Stats {
 		log.Fatal(err)
 	}
 
-	return serverStats
+	return &serverStats
 }
 
 func (c *CLI) parseCommand(input string) (string, string) {

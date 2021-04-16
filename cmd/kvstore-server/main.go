@@ -6,18 +6,11 @@ import (
 
 	"github.com/HotPotatoC/kvstore/pkg/logger"
 	"github.com/HotPotatoC/kvstore/server"
-	"go.uber.org/zap"
+	"github.com/HotPotatoC/kvstore/version"
 
 	"net/http"
 	_ "net/http/pprof"
 )
-
-// Version of the server
-var Version = "dev"
-// Build of the server
-var Build = "dev"
-
-var log *zap.SugaredLogger
 
 var (
 	host  = flag.String("host", "0.0.0.0", "KVStore server host")
@@ -31,14 +24,10 @@ func init() {
 	flag.BoolVar(debug, "d", false, "Debug mode")
 }
 
-func init() {
-	log = logger.NewLogger()
-}
-
 func main() {
 	flag.Parse()
-
-	server := server.New(Version, Build)
+	log := logger.New()
+	server := server.New(version.Version, version.Build)
 
 	if *debug {
 		log.Info("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")

@@ -33,7 +33,7 @@ type Server struct {
 func New(version, build string) *Server {
 	return &Server{
 		db:  database.New(),
-		log: logger.NewLogger(),
+		log: logger.New(),
 		Stats: &stats.Stats{
 			Version: version,
 			Build:   build,
@@ -76,8 +76,8 @@ func (s *Server) onDisconnected(conn net.Conn) {
 }
 
 func (s *Server) onMessage(conn net.Conn, msg []byte) {
+	var packet packet.Packet
 	buffer := bytes.NewBuffer(msg)
-	packet := new(packet.Packet)
 
 	comm := comm.NewWithConn(conn)
 

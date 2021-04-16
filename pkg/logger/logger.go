@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// NewLogger Constructs a new logger
-func NewLogger() *zap.SugaredLogger {
+// New creates a new logger
+func New() *zap.SugaredLogger {
 	atom := zap.NewAtomicLevel()
 
 	atom.SetLevel(zap.InfoLevel)

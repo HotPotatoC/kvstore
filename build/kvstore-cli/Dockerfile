@@ -22,7 +22,7 @@ COPY . .
 
 RUN mkdir .bin
 
-RUN go build -ldflags="-s -w -X 'main.Version=${VERSION}' -X 'main.Build=${GIT_COMMIT}'" -v -o \
+RUN go build -ldflags="-s -w -X 'version.Version=${VERSION}' -X 'version.Build=${GIT_COMMIT}'" -v -o \
     /go/bin/kvstore-cli cmd/kvstore-cli/main.go
 
 FROM scratch

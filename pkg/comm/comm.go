@@ -2,62 +2,61 @@ package comm
 
 import (
 	"net"
-	"time"
 )
 
 // Comm is a basic stream communication
 type Comm struct {
-	Conn net.Conn
+	conn net.Conn
+
+	cfg *Config
 }
 
 // New creates a new comm
-func New(addr string) (*Comm, error) {
-	conn, err := newConnection(addr, time.Second*30)
+func New(cfg *Config) (*Comm, error) {
+	cfg.init()
+	conn, err := newConnection(cfg)
 	return &Comm{
-		Conn: conn,
+		conn: conn,
+		cfg:  cfg,
 	}, err
 }
 
 // NewWithConn creates a new comm with the given connection
 func NewWithConn(conn net.Conn) *Comm {
 	return &Comm{
-		Conn: conn,
+		conn: conn,
 	}
 }
 
 // Connection returns the connection
 func (c *Comm) Connection() net.Conn {
-	return c.Conn
+	return c.conn
 }
 
 // Send writes data to the connection
 func (c *Comm) Send(b []byte) (err error) {
-	_, err = c.Conn.Write(b)
+	_, err = c.conn.Write(b)
 	return
 }
 
 // Read reads data from the connection
 func (c *Comm) Read() (buffer []byte, n int, err error) {
-	buffer = make([]byte, 1024 * 36)
-	n, err = c.Conn.Read(buffer)
+	buffer = make([]byte, 2048)
+	n, err = c.conn.Read(buffer)
 	return
 }
 
-func newConnection(addr string, timeout time.Duration) (net.Conn, error) {
-	connection, err := net.DialTimeout("tcp", addr, timeout)
+func newConnection(cfg *Config) (net.Conn, error) {
+	connection, err := net.DialTimeout("tcp", cfg.Addr, cfg.DialTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := connection.SetDeadline(time.Now().Add(time.Hour * 1)); err != nil {
+	if err := connection.SetReadDeadline(cfg.ReadDeadline); err != nil {
 		return nil, err
 	}
 
-	if err := connection.SetReadDeadline(time.Now().Add(time.Hour * 1)); err != nil {
-		return nil, err
-	}
-
-	if err := connection.SetWriteDeadline(time.Now().Add(time.Hour * 1)); err != nil {
+	if err := connection.SetWriteDeadline(cfg.WriteDeadline); err != nil {
 		return nil, err
 	}
 

@@ -24,9 +24,9 @@ func NewPacket(cmd command.Op, args []byte) *Packet {
 
 // Encode encodes the packet
 func (p *Packet) Encode() (*bytes.Buffer, error) {
-	buf := new(bytes.Buffer)
+	var buf bytes.Buffer
 
-	tlvWriter := tlv.NewWriter(buf, tlv.DefaultTLVCodec)
+	tlvWriter := tlv.NewWriter(&buf, tlv.DefaultTLVCodec)
 	record := tlv.NewRecord(p.Args, uint(p.Cmd))
 
 	err := tlvWriter.Write(record)
@@ -34,7 +34,7 @@ func (p *Packet) Encode() (*bytes.Buffer, error) {
 		return nil, err
 	}
 
-	return buf, nil
+	return &buf, nil
 }
 
 // Decode decodes the packet
