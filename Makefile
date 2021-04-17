@@ -4,7 +4,7 @@ APP_NAME=kvstore
 VERSION?=$(shell cat VERSION)
 BUILD=$(shell git rev-parse HEAD)
 
-VERSION_PACKAGE=github.com/HotPotatoC/kvstore/version
+VERSION_PACKAGE=github.com/HotPotatoC/kvstore/internal/version
 
 GO=go
 GOOSS=darwin linux windows freebsd netbsd openbsd dragonfly
