@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/internal/datastructure/hashtable"
 )
 
 func populate(n int) *hashtable.HashTable {

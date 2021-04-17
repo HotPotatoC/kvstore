@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/internal/datastructure/hashtable"
 )
 
 // Store is the representation of a key-value pair database

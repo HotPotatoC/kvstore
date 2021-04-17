@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/internal/database"
 )
 
 func TestCommandSET(t *testing.T) {
-	db := hashtable.New()
+	db := database.New()
 
 	cmd := command.New(db, nil, command.SET)
 

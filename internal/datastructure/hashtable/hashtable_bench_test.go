@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/HotPotatoC/kvstore/pkg/hashtable"
+	"github.com/HotPotatoC/kvstore/internal/datastructure/hashtable"
 )
 
 func BenchmarkSet(b *testing.B) {
