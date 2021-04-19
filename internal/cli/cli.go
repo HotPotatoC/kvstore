@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,18 +12,18 @@ import (
 	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"github.com/fatih/color"
 	"github.com/peterh/liner"
+	"github.com/smallnest/goframe"
 )
 
 // CLI represents the cli client
 type CLI struct {
-	comm     *comm.Comm
 	terminal *liner.State
+	conn     goframe.FrameConn
 }
 
 // New creates a new CLI client
@@ -34,9 +35,24 @@ func New(addr string) *CLI {
 		log.Fatal(err)
 	}
 
+	encoder := goframe.EncoderConfig{
+		ByteOrder:                       binary.BigEndian,
+		LengthFieldLength:               4,
+		LengthAdjustment:                0,
+		LengthIncludesLengthFieldLength: false,
+	}
+
+	decoder := goframe.DecoderConfig{
+		ByteOrder:           binary.BigEndian,
+		LengthFieldOffset:   0,
+		LengthFieldLength:   4,
+		LengthAdjustment:    0,
+		InitialBytesToStrip: 4,
+	}
+
 	return &CLI{
-		comm:     comm,
 		terminal: newTerminal(),
+		conn:     goframe.NewLengthFieldBasedFrameConn(encoder, decoder, comm.Connection()),
 	}
 }
 
@@ -50,10 +66,10 @@ func (c *CLI) Start() {
 		yellow := color.New(color.FgHiYellow).SprintFunc()
 		fmt.Printf("🚀 Connected to kvstore %s:%s server!\n\n", yellow(stats.Version), yellow(stats.Build))
 		for {
-			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.comm.Connection().RemoteAddr().String()))
+			input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.conn.Conn().RemoteAddr().String()))
 			if err != nil {
 				if err == io.EOF {
-					c.comm.Connection().Close()
+					c.conn.Conn().Close()
 					os.Exit(1)
 				}
 				log.Fatal(err)
@@ -93,22 +109,40 @@ func (c *CLI) Start() {
 				}
 			// Exit out of the CLI
 			case "exit":
-				c.comm.Connection().Close()
+				c.conn.Conn().Close()
 				os.Exit(0)
 			// This is where commands are parsed and processed inputs are sent to the server
 			default:
-				preprocessed, err := preprocess(cmd, args)
-				if err != nil {
-					log.Println(err)
+				var op command.Op
+
+				switch cmd {
+				case command.SET.String():
+					op = command.SET
+				case command.SETEX.String():
+					op = command.SETEX
+				case command.GET.String():
+					op = command.GET
+				case command.DEL.String():
+					op = command.DEL
+				case command.LIST.String():
+					op = command.LIST
+				case command.KEYS.String():
+					op = command.KEYS
+				case command.FLUSH.String():
+					op = command.FLUSH
+				case command.INFO.String():
+					op = command.INFO
+				default:
+					fmt.Printf("Command '%s' does not exist\n", cmd)
 					continue
 				}
 
-				err = c.comm.Send(preprocessed.Bytes())
+				err = c.conn.WriteFrame([]byte(fmt.Sprintf("%s %s", op.String(), args)))
 				if err != nil && err != io.EOF {
 					log.Fatal(err)
 				}
 
-				msg, _, err := c.comm.Read()
+				msg, err := c.conn.ReadFrame()
 				if err != nil && err != io.EOF {
 					log.Fatal(err)
 				}
@@ -119,7 +153,7 @@ func (c *CLI) Start() {
 			// Write history into tmp direcotry
 			f, err := os.Create(filepath.Join(os.TempDir(), ".kvstore-cli-history"))
 			if err != nil {
-				log.Printf("Failed creating history file %s\n", filepath.Join(os.TempDir(), ".kvstore-cli-history"))
+				fmt.Printf("Failed creating history file %s\n", filepath.Join(os.TempDir(), ".kvstore-cli-history"))
 			}
 			c.terminal.WriteHistory(f)
 			_ = f.Close()
@@ -127,29 +161,24 @@ func (c *CLI) Start() {
 	}()
 
 	<-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
-	c.comm.Connection().Close()
+	c.conn.Conn().Close()
 	os.Exit(0)
 }
 
 func (c *CLI) getServerInformation() *stats.Stats {
 	var serverStats stats.Stats
-	infoPacket := packet.NewPacket(command.INFO, []byte(""))
-	infoBuffer, err := infoPacket.Encode()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	err = c.comm.Send(infoBuffer.Bytes())
+	err := c.conn.WriteFrame(command.INFO.Bytes())
 	if err != nil && err != io.EOF {
 		log.Fatal(err)
 	}
 
-	infoMessage, n, err := c.comm.Read()
+	infoMessage, err := c.conn.ReadFrame()
 	if err != nil && err != io.EOF {
 		log.Fatal(err)
 	}
 
-	err = json.Unmarshal(infoMessage[:n], &serverStats)
+	err = json.Unmarshal(infoMessage, &serverStats)
 	if err != nil {
 		log.Fatal(err)
 	}

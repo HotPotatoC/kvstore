@@ -1,41 +1,37 @@
 package server
 
 import (
-	"bytes"
+	"encoding/binary"
 	"fmt"
-	"net"
 	"os"
 	"strings"
-	"sync"
-	"syscall"
+	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/database"
-	"github.com/HotPotatoC/kvstore/internal/packet"
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
-	"github.com/HotPotatoC/kvstore/pkg/comm"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
-	"github.com/HotPotatoC/kvstore/pkg/tcp"
-	"github.com/HotPotatoC/kvstore/pkg/utils"
 	"github.com/fatih/color"
+	"github.com/panjf2000/gnet"
+	"github.com/panjf2000/gnet/pool/goroutine"
 	"go.uber.org/zap"
 )
 
-// Server represents the database server
 type Server struct {
-	db     database.Store
-	log    *zap.SugaredLogger
-	server *tcp.Server
-	mtx    sync.RWMutex
-	// Info
+	*gnet.EventServer
 	*stats.Stats
+
+	db  database.Store
+	log *zap.SugaredLogger
+
+	workerPool *goroutine.Pool
 }
 
-// New creates a new kvstore server
-func New(version, build string) *Server {
+func New(version string, build string) *Server {
 	return &Server{
-		db:  database.New(),
-		log: logger.New(),
+		db:         database.New(),
+		log:        logger.New(),
+		workerPool: goroutine.Default(),
 		Stats: &stats.Stats{
 			Version: version,
 			Build:   build,
@@ -43,86 +39,127 @@ func New(version, build string) *Server {
 	}
 }
 
-// Start runs the server
-func (s *Server) Start(host string, port int) {
-	s.startupMessage()
-	s.server = tcp.New()
-
-	s.server.OnConnected = s.onConnected
-	s.server.OnDisconnected = s.onDisconnected
-	s.server.OnMessage = s.onMessage
-
-	s.Stats.Init()
-
+func (s *Server) Start(host string, port int) error {
 	s.TCPHost = host
 	s.TCPPort = port
 
-	s.server.Listen(host, port)
-	s.printLogo()
-	s.log.Info("Ready to accept connections.")
+	s.startupMessage()
 
-	rcvSignal := <-utils.WaitForSignals(os.Interrupt, syscall.SIGTERM)
+	codec := gnet.NewLengthFieldBasedFrameCodec(
+		gnet.EncoderConfig{
+			ByteOrder:                       binary.BigEndian,
+			LengthFieldLength:               4,
+			LengthAdjustment:                0,
+			LengthIncludesLengthFieldLength: false,
+		},
+		gnet.DecoderConfig{
+			ByteOrder:           binary.BigEndian,
+			LengthFieldOffset:   0,
+			LengthFieldLength:   4,
+			LengthAdjustment:    0,
+			InitialBytesToStrip: 4,
+		})
 
-	s.shutdown(rcvSignal)
-}
-
-func (s *Server) onConnected(conn net.Conn) {
-	s.mtx.Lock()
-	// Increment connected clients
-	s.ConnectedCount++
-	s.TotalConnectionsCount++
-	s.mtx.Unlock()
-}
-
-func (s *Server) onDisconnected(conn net.Conn) {
-	s.mtx.Lock()
-	// Decrement connected clients
-	s.ConnectedCount--
-	s.mtx.Unlock()
-}
-
-func (s *Server) onMessage(conn net.Conn, msg []byte) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	var packet packet.Packet
-	buffer := bytes.NewBuffer(msg)
-
-	comm := comm.NewWithConn(conn)
-
-	err := packet.Decode(buffer)
+	err := gnet.Serve(s, fmt.Sprintf("tcp://%s:%d", host, port),
+		gnet.WithTCPKeepAlive(10*time.Minute),
+		gnet.WithCodec(codec))
 	if err != nil {
-		s.log.Error(err)
+		return err
 	}
-
-	command := command.New(s.db, s.Stats, packet.Cmd)
-	if command == nil {
-		err := comm.Send([]byte(fmt.Sprintf("Command '%s' does not exist\n", packet.Cmd.String())))
-		if err != nil {
-			s.log.Error(err)
-		}
-	} else {
-		result := command.Execute(strings.Split(string(packet.Args), " "))
-		err := comm.Send([]byte(fmt.Sprintf("%s\n", result)))
-		if err != nil {
-			s.log.Error(err)
-		}
-	}
+	return nil
 }
 
-func (s *Server) shutdown(signal os.Signal) {
-	s.log.Infof("received %s signal", signal)
+func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
+	s.printLogo(srv)
+	return
+}
+
+func (s *Server) OnShutdown(svr gnet.Server) {
 	s.log.Info("Shutting down server...")
-	s.server.Stop()
 	s.log.Info("Goodbye 👋")
 }
 
-func (s *Server) startupMessage() {
-	s.log.Info("KVStore is starting...")
-	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
-	s.log.Info("starting tcp server...")
+func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
+	s.ConnectedCount++
+	s.TotalConnectionsCount++
+	return
 }
 
-func (s *Server) printLogo() {
+func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
+	s.ConnectedCount--
+	return
+}
+
+func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Action) {
+	data := append([]byte{}, frame...)
+	err := s.workerPool.Submit(func() {
+		raw := strings.Fields(string(data))
+		if len(raw) < 1 {
+			err := conn.AsyncWrite([]byte("missing command\n"))
+			if err != nil {
+				s.log.Error(err)
+			}
+			return
+		}
+
+		cmd := strings.ToLower(
+			strings.TrimSpace(raw[0]))
+		args := strings.TrimSpace(
+			strings.TrimPrefix(string(data), raw[0]))
+
+		var op command.Op
+		switch string(cmd) {
+		case command.SET.String():
+			op = command.SET
+		case command.SETEX.String():
+			op = command.SETEX
+		case command.GET.String():
+			op = command.GET
+		case command.DEL.String():
+			op = command.DEL
+		case command.LIST.String():
+			op = command.LIST
+		case command.KEYS.String():
+			op = command.KEYS
+		case command.FLUSH.String():
+			op = command.FLUSH
+		case command.INFO.String():
+			op = command.INFO
+		default:
+			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+			if err != nil {
+				s.log.Error(err)
+			}
+		}
+
+		command := command.New(s.db, s.Stats, op)
+		if command == nil {
+			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+			if err != nil {
+				s.log.Error(err)
+			}
+		} else {
+			result := command.Execute(strings.Split(string(args), " "))
+			err := conn.AsyncWrite([]byte(fmt.Sprintf("%s\n", result)))
+			if err != nil {
+				s.log.Error(err)
+			}
+		}
+	})
+
+	if err != nil {
+		s.log.Error(err)
+	}
+	return
+}
+
+func (s *Server) startupMessage() {
+	s.log.Info("kvstore is starting...")
+	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
+	s.log.Info("starting gnet event server...")
+}
+
+func (s *Server) printLogo(srv gnet.Server) {
 	yellow := color.New(color.FgYellow).SprintFunc()
 	white := color.New(color.FgWhite, color.Bold).SprintFunc()
 	var logo string
@@ -150,4 +187,6 @@ func (s *Server) printLogo() {
 	logo += yellow("                   \"─.|,^\n\n")
 
 	fmt.Printf(logo, s.Version, s.TCPPort, os.Getpid())
+	s.log.Infof("Started kvstore server")
+	s.log.Info("Ready to accept connections.")
 }

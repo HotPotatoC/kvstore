@@ -39,5 +39,5 @@ func main() {
 		}()
 	}
 
-	server.Start(*host, *port)
+	log.Fatal(server.Start(*host, *port))
 }

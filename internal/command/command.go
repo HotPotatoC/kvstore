@@ -31,6 +31,19 @@ func (c Op) String() string {
 	return [...]string{"set", "setex", "get", "del", "list", "keys", "flush", "info"}[c]
 }
 
+func (c Op) Bytes() []byte {
+	return [...][]byte{
+		[]byte("set"),
+		[]byte("setex"),
+		[]byte("get"),
+		[]byte("del"),
+		[]byte("list"),
+		[]byte("keys"),
+		[]byte("flush"),
+		[]byte("info"),
+	}[c]
+}
+
 // Args is the command required args. Used for information
 func (c Op) Args() string {
 	return [...]string{
