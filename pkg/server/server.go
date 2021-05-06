@@ -50,7 +50,6 @@ func (s *Server) Start(host string, port int) error {
 		framecodec.NewGNETDefaultLengthFieldBasedFrameDecoderConfig())
 
 	err := gnet.Serve(s, fmt.Sprintf("tcp://%s:%d", host, port),
-		gnet.WithMulticore(true),
 		gnet.WithTCPKeepAlive(10*time.Minute),
 		gnet.WithCodec(codec))
 	if err != nil {
