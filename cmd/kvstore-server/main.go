@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/internal/server"
-	"github.com/HotPotatoC/kvstore/internal/version"
 	"github.com/HotPotatoC/kvstore/pkg/logger"
+	"github.com/HotPotatoC/kvstore/pkg/server"
+	"github.com/HotPotatoC/kvstore/pkg/version"
 
 	"net/http"
 	_ "net/http/pprof"

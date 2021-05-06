@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/HotPotatoC/kvstore/internal/cli"
+	"github.com/HotPotatoC/kvstore/pkg/cli"
 )
 
 var (
