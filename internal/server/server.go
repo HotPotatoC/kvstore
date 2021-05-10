@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
-	"github.com/HotPotatoC/kvstore/internal/database"
 	"github.com/HotPotatoC/kvstore/internal/framecodec"
 	"github.com/HotPotatoC/kvstore/internal/logger"
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 	"github.com/fatih/color"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
@@ -21,15 +21,15 @@ type Server struct {
 	*gnet.EventServer
 	*stats.Stats
 
-	db  database.Store
-	log *zap.SugaredLogger
+	storage storage.Store
+	log     *zap.SugaredLogger
 
 	workerPool *goroutine.Pool
 }
 
 func New(version string, build string) *Server {
 	return &Server{
-		db:         database.New(),
+		storage:    storage.New(),
 		log:        logger.New(),
 		workerPool: goroutine.Default(),
 		Stats: &stats.Stats{
@@ -121,7 +121,7 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 			}
 		}
 
-		command := command.New(s.db, s.Stats, op)
+		command := command.New(s.storage, s.Stats, op)
 		if command == nil {
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
 			if err != nil {

@@ -3,14 +3,14 @@ package command
 import (
 	"strings"
 
-	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
 type setCommand struct {
-	db database.Store
+	db storage.Store
 }
 
-func makeSetCommand(db database.Store) Command {
+func makeSetCommand(db storage.Store) Command {
 	return setCommand{
 		db: db,
 	}

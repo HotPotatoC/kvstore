@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
 type listCommand struct {
-	db database.Store
+	db storage.Store
 }
 
-func makeListCommand(db database.Store) Command {
+func makeListCommand(db storage.Store) Command {
 	return listCommand{
 		db: db,
 	}

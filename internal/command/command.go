@@ -1,8 +1,8 @@
 package command
 
 import (
-	"github.com/HotPotatoC/kvstore/internal/database"
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
 // Op represents the command operation code
@@ -79,7 +79,7 @@ type Command interface {
 }
 
 // New constructs the given command operation
-func New(db database.Store, stats *stats.Stats, cmd Op) Command {
+func New(db storage.Store, stats *stats.Stats, cmd Op) Command {
 	var command Command
 	switch cmd {
 	case SET:

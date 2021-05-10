@@ -3,14 +3,14 @@ package command
 import (
 	"fmt"
 
-	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
 type delCommand struct {
-	db database.Store
+	db storage.Store
 }
 
-func makeDelCommand(db database.Store) Command {
+func makeDelCommand(db storage.Store) Command {
 	return delCommand{
 		db: db,
 	}

@@ -1,16 +1,16 @@
-package database_test
+package storage_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/internal/database"
 	"github.com/HotPotatoC/kvstore/internal/datastructure/hashtable"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
-func populate(n int) database.Store {
-	db := database.New()
+func populate(n int) storage.Store {
+	db := storage.New()
 	for i := 0; i < n; i++ {
 		db.Set(fmt.Sprintf("k%d", i+1), fmt.Sprintf("v%d", i+1))
 	}
