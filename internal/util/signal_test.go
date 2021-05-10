@@ -1,11 +1,11 @@
-package utils_test
+package util_test
 
 import (
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/internal/utils"
+	"github.com/HotPotatoC/kvstore/internal/util"
 )
 
 func TestWaitForSignals(t *testing.T) {
@@ -17,7 +17,7 @@ func TestWaitForSignals(t *testing.T) {
 		}
 	}()
 
-	signal := <-utils.WaitForSignals(syscall.SIGTERM)
+	signal := <-util.WaitForSignals(syscall.SIGTERM)
 	if signal != syscall.SIGTERM {
 		t.Errorf("Failed TestWaitForSignals -> Expected: %s | Got: %s", "SIGTERM", signal.String())
 	}

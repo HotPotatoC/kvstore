@@ -1,4 +1,4 @@
-package utils_test
+package util_test
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/internal/utils"
+	"github.com/HotPotatoC/kvstore/internal/util"
 )
 
 func TestByteCount(t *testing.T) {
@@ -25,8 +25,8 @@ func TestByteCount(t *testing.T) {
 	}
 	for i, tt := range tc {
 		t.Run(fmt.Sprintf("#%d ByteCount(%d)", i+1, tt.n), func(t *testing.T) {
-			if utils.ByteCount(tt.n) != tt.want {
-				t.Errorf("Failed TestByteCount -> Expected: %s | Got: %s", tt.want, utils.ByteCount(tt.n))
+			if util.ByteCount(tt.n) != tt.want {
+				t.Errorf("Failed TestByteCount -> Expected: %s | Got: %s", tt.want, util.ByteCount(tt.n))
 			}
 		})
 	}
@@ -50,8 +50,8 @@ func TestFormatDuration(t *testing.T) {
 	}
 	for i, tt := range tc {
 		t.Run(fmt.Sprintf("#%d FormatDuration(%d)", i+1, tt.td), func(t *testing.T) {
-			if utils.FormatDuration(tt.td) != tt.want {
-				t.Errorf("Failed TestFormatDuration -> Expected: %s | Got: %s", tt.want, utils.FormatDuration(tt.td))
+			if util.FormatDuration(tt.td) != tt.want {
+				t.Errorf("Failed TestFormatDuration -> Expected: %s | Got: %s", tt.want, util.FormatDuration(tt.td))
 			}
 		})
 	}
