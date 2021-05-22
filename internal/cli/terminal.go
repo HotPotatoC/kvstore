@@ -19,9 +19,8 @@ func newTerminal() *liner.State {
 			command.SETEX,
 			command.GET,
 			command.DEL,
-			command.LIST,
 			command.KEYS,
-			command.FLUSH,
+			command.FLUSHALL,
 			command.INFO,
 		}
 		for _, n := range commands {

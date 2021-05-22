@@ -172,17 +172,15 @@ func (s *Server) parseCommand(cmd, args string) (command.Op, error) {
 	case command.DEL.String():
 		writeToAOF(cmd, args)
 		return command.DEL, nil
-	case command.FLUSH.String():
+	case command.FLUSHALL.String():
 		err := s.storageAOFPersistor.Truncate()
 		if err != nil {
 			return -1, err
 		}
 
-		return command.FLUSH, nil
+		return command.FLUSHALL, nil
 	case command.GET.String():
 		return command.GET, nil
-	case command.LIST.String():
-		return command.LIST, nil
 	case command.KEYS.String():
 		return command.KEYS, nil
 	case command.INFO.String():

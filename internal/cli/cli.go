@@ -72,9 +72,8 @@ func (c *CLI) Start() {
 				command.SETEX,
 				command.GET,
 				command.DEL,
-				command.LIST,
 				command.KEYS,
-				command.FLUSH,
+				command.FLUSHALL,
 				command.INFO,
 			}
 			color.Set(color.FgHiYellow)
@@ -106,12 +105,10 @@ func (c *CLI) Start() {
 				op = command.GET
 			case command.DEL.String():
 				op = command.DEL
-			case command.LIST.String():
-				op = command.LIST
 			case command.KEYS.String():
 				op = command.KEYS
-			case command.FLUSH.String():
-				op = command.FLUSH
+			case command.FLUSHALL.String():
+				op = command.FLUSHALL
 			case command.INFO.String():
 				op = command.INFO
 			default:

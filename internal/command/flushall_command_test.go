@@ -7,13 +7,13 @@ import (
 	"github.com/HotPotatoC/kvstore/internal/command"
 )
 
-func TestCommandFLUSH(t *testing.T) {
+func TestCommandFLUSHALL(t *testing.T) {
 	db := NewTempDB(10)
 
-	cmd := command.New(db, nil, command.FLUSH)
+	cmd := command.New(db, nil, command.FLUSHALL)
 
 	result := cmd.Execute([]string{""})
 	if !bytes.Equal([]byte("OK"), result) {
-		t.Errorf("Failed TestCommandFLUSH -> Expected: %s | Got: %s", []byte("OK"), result)
+		t.Errorf("Failed TestCommandFLUSHALL -> Expected: %s | Got: %s", []byte("OK"), result)
 	}
 }

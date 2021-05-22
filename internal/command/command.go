@@ -17,18 +17,16 @@ const (
 	GET
 	// DEL remove an entry in the database with the matching key
 	DEL
-	// LIST displays all the saved data in the database
-	LIST
 	// KEYS displays all the saved keys in the database
 	KEYS
-	// FLUSH delete all keys
-	FLUSH
+	// FLUSHALL delete all keys
+	FLUSHALL
 	// INFO displays the current status of the server (memory allocs, connected clients, uptime, etc.)
 	INFO
 )
 
 func (c Op) String() string {
-	return [...]string{"set", "setex", "get", "del", "list", "keys", "flush", "info"}[c]
+	return [...]string{"set", "setex", "get", "del", "keys", "flushall", "info"}[c]
 }
 
 func (c Op) Bytes() []byte {
@@ -37,9 +35,8 @@ func (c Op) Bytes() []byte {
 		[]byte("setex"),
 		[]byte("get"),
 		[]byte("del"),
-		[]byte("list"),
 		[]byte("keys"),
-		[]byte("flush"),
+		[]byte("flushall"),
 		[]byte("info"),
 	}[c]
 }
@@ -54,7 +51,6 @@ func (c Op) Args() string {
 		"",
 		"",
 		"",
-		"",
 	}[c]
 }
 
@@ -65,7 +61,6 @@ func (c Op) Description() string {
 		"Insert a new expirable entry into the database",
 		"Return the data in the database with the matching key",
 		"Remove an entry in the database with the matching key",
-		"Display all the saved data in the database with the format [key] -> [value]",
 		"Display all the saved keys in the database",
 		"Delete all keys",
 		"Display the current stats of the server (OS, mem usage, total connections, etc.) in json format",
@@ -90,12 +85,10 @@ func New(db storage.Store, stats *stats.Stats, cmd Op) Command {
 		command = makeGetCommand(db)
 	case DEL:
 		command = makeDelCommand(db)
-	case LIST:
-		command = makeListCommand(db)
 	case KEYS:
 		command = makeKeysCommand(db)
-	case FLUSH:
-		command = makeFlushCommand(db)
+	case FLUSHALL:
+		command = makeFlushAllCommand(db)
 	case INFO:
 		command = makeInfoCommand(db, stats)
 	default:
