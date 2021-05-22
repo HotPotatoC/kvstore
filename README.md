@@ -6,9 +6,9 @@
 
 ![kvstore in action](.github/kvstore.gif)
 
-# Please Note
+# NOTE
 
-This project is not **yet** targeted for production use. The purpose of this project at the moment is mostly just for fun and learning.
+This project is not **yet** targeted for production use. This project is currently marked as experimental and for educational purposes only.
 
 Want to expand this project? open up an [issue](https://github.com/HotPotatoC/kvstore/issues/new) or you can contact me on juandotulung@gmail.com
 

@@ -2,8 +2,10 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/HotPotatoC/kvstore/internal/command"
@@ -21,21 +23,35 @@ type Server struct {
 	*gnet.EventServer
 	*stats.Stats
 
-	storage storage.Store
-	log     *zap.SugaredLogger
+	log  *zap.SugaredLogger
+	pool *goroutine.Pool
 
-	workerPool *goroutine.Pool
+	connectedClients sync.Map
+
+	storage             storage.Store
+	storageAOFPersistor *storage.AOFPersistor
+
+	tick         time.Duration
+	commandQueue chan string
 }
 
 func New(version string, build string) *Server {
+	storageAOFPersistor, err := storage.NewAOFPersistor()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &Server{
-		storage:    storage.New(),
-		log:        logger.New(),
-		workerPool: goroutine.Default(),
 		Stats: &stats.Stats{
 			Version: version,
 			Build:   build,
 		},
+		log:                 logger.New(),
+		pool:                goroutine.Default(),
+		storage:             storage.New(),
+		storageAOFPersistor: storageAOFPersistor,
+		tick:                60 * time.Second,
+		commandQueue:        make(chan string),
 	}
 }
 
@@ -45,11 +61,14 @@ func (s *Server) Start(host string, port int) error {
 
 	s.startupMessage()
 
+	go s.storageAOFPersistor.Run(s.tick)
+
 	codec := framecodec.NewLengthFieldBasedFrameCodec(
 		framecodec.NewGNETDefaultLengthFieldBasedFrameEncoderConfig(),
 		framecodec.NewGNETDefaultLengthFieldBasedFrameDecoderConfig())
 
 	err := gnet.Serve(s, fmt.Sprintf("tcp://%s:%d", host, port),
+		gnet.WithTicker(true),
 		gnet.WithTCPKeepAlive(10*time.Minute),
 		gnet.WithCodec(codec))
 	if err != nil {
@@ -58,30 +77,9 @@ func (s *Server) Start(host string, port int) error {
 	return nil
 }
 
-func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
-	s.printLogo(srv)
-	return
-}
-
-func (s *Server) OnShutdown(svr gnet.Server) {
-	s.log.Info("Shutting down server...")
-	s.log.Info("Goodbye 👋")
-}
-
-func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
-	s.ConnectedCount++
-	s.TotalConnectionsCount++
-	return
-}
-
-func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
-	s.ConnectedCount--
-	return
-}
-
 func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Action) {
 	data := append([]byte{}, frame...)
-	err := s.workerPool.Submit(func() {
+	err := s.pool.Submit(func() {
 		raw := strings.Fields(string(data))
 		if len(raw) < 1 {
 			err := conn.AsyncWrite([]byte("missing command\n"))
@@ -96,26 +94,9 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 		args := strings.TrimSpace(
 			strings.TrimPrefix(string(data), raw[0]))
 
-		var op command.Op
-		switch string(cmd) {
-		case command.SET.String():
-			op = command.SET
-		case command.SETEX.String():
-			op = command.SETEX
-		case command.GET.String():
-			op = command.GET
-		case command.DEL.String():
-			op = command.DEL
-		case command.LIST.String():
-			op = command.LIST
-		case command.KEYS.String():
-			op = command.KEYS
-		case command.FLUSH.String():
-			op = command.FLUSH
-		case command.INFO.String():
-			op = command.INFO
-		default:
-			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+		op, err := s.parseCommand(cmd, args)
+		if err != nil {
+			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
 			if err != nil {
 				s.log.Error(err)
 			}
@@ -135,11 +116,79 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 			}
 		}
 	})
-
 	if err != nil {
 		s.log.Error(err)
 	}
+
 	return
+}
+
+func (s *Server) OnShutdown(svr gnet.Server) {
+	s.log.Info("Shutting down server...")
+
+	s.connectedClients.Range(func(key, value interface{}) bool {
+		c := value.(gnet.Conn)
+		c.Close()
+		s.connectedClients.Delete(key)
+		return true
+	})
+
+	s.storageAOFPersistor.Close()
+
+	s.log.Info("Goodbye 👋")
+}
+
+func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
+	s.ConnectedCount++
+	s.TotalConnectionsCount++
+
+	s.connectedClients.Store(conn.RemoteAddr().String(), conn)
+	return
+}
+
+func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
+	s.ConnectedCount--
+	s.connectedClients.Delete(conn.RemoteAddr().String())
+	return
+}
+
+func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
+	s.printLogo(srv)
+	return
+}
+
+func (s *Server) parseCommand(cmd, args string) (command.Op, error) {
+	writeToAOF := func(cmd, args string) {
+		s.storageAOFPersistor.Add(fmt.Sprintf("%s %s", cmd, args))
+	}
+
+	switch string(cmd) {
+	case command.SET.String():
+		writeToAOF(cmd, args)
+		return command.SET, nil
+	case command.SETEX.String():
+		writeToAOF(cmd, args)
+		return command.SETEX, nil
+	case command.DEL.String():
+		writeToAOF(cmd, args)
+		return command.DEL, nil
+	case command.FLUSH.String():
+		err := s.storageAOFPersistor.Truncate()
+		if err != nil {
+			return -1, err
+		}
+
+		return command.FLUSH, nil
+	case command.GET.String():
+		return command.GET, nil
+	case command.LIST.String():
+		return command.LIST, nil
+	case command.KEYS.String():
+		return command.KEYS, nil
+	case command.INFO.String():
+		return command.INFO, nil
+	}
+	return -1, command.ErrCommandDoesNotExist
 }
 
 func (s *Server) startupMessage() {
