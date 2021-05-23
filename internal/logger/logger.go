@@ -6,11 +6,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// New creates a new logger
-func New() *zap.SugaredLogger {
+// Init initializes the global logger
+func Init(debug bool) {
 	atom := zap.NewAtomicLevel()
 
-	atom.SetLevel(zap.InfoLevel)
+	if debug {
+		atom.SetLevel(zap.DebugLevel)
+	} else {
+		atom.SetLevel(zap.InfoLevel)
+	}
 
 	encoder := zap.NewDevelopmentEncoderConfig()
 	encoder.EncodeLevel = nil
@@ -22,7 +26,13 @@ func New() *zap.SugaredLogger {
 	))
 	defer logger.Sync()
 
-	sugar := logger.Sugar()
+	if debug {
+		logger = logger.WithOptions(zap.AddCaller())
+	}
 
-	return sugar
+	zap.ReplaceGlobals(logger)
+}
+
+func L() *zap.SugaredLogger {
+	return zap.L().Sugar()
 }

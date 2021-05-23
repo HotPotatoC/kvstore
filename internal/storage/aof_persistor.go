@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/HotPotatoC/kvstore/internal/logger"
 )
 
 const defaultAOFFileName = "kvstore-aof.log"
@@ -51,7 +53,7 @@ func NewAOFPersistor(path ...string) (*AOFPersistor, error) {
 	persistor := &AOFPersistor{
 		file:   file,
 		writer: bufio.NewWriter(file),
-		quit: make(chan struct{}),
+		quit:   make(chan struct{}),
 	}
 
 	return persistor, nil
@@ -68,9 +70,15 @@ func (aof *AOFPersistor) Run(after time.Duration) {
 			select {
 			case <-t.C:
 				aof.mtx.Lock()
-				aof.writer.Flush()
+				logger.L().Debug("aof writer tick")
+				err := aof.writer.Flush()
+				if err != nil {
+					logger.L().Error("failed flushing buffered data into the aof log")
+					logger.L().Errorf("reason: %v", err)
+				}
 				aof.mtx.Unlock()
 			case <-aof.quit:
+				logger.L().Debug("received aof log quit signal")
 				return
 			}
 		}
@@ -82,6 +90,7 @@ func (aof *AOFPersistor) Run(after time.Duration) {
 func (aof *AOFPersistor) Add(data string) {
 	aof.mtx.Lock()
 	fmt.Fprintln(aof.writer, data)
+	logger.L().Debugf("wrote %s to the aof writer", data)
 	aof.mtx.Unlock()
 }
 
@@ -89,11 +98,13 @@ func (aof *AOFPersistor) Add(data string) {
 func (aof *AOFPersistor) Truncate() error {
 	aof.mtx.Lock()
 	defer aof.mtx.Unlock()
+	logger.L().Debug("truncating aof log")
 	return aof.file.Truncate(0)
 }
 
 // Close simply closes the file
 func (aof *AOFPersistor) Close() error {
+	logger.L().Debug("closing aof data persistor service")
 	aof.quit <- struct{}{}
 	aof.file.Sync()
 	return aof.file.Close()

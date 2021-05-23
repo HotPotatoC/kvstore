@@ -16,14 +16,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
-	"go.uber.org/zap"
 )
 
 type Server struct {
 	*gnet.EventServer
 	*stats.Stats
 
-	log  *zap.SugaredLogger
 	pool *goroutine.Pool
 
 	connectedClients sync.Map
@@ -46,7 +44,6 @@ func New(version string, build string) *Server {
 			Version: version,
 			Build:   build,
 		},
-		log:                 logger.New(),
 		pool:                goroutine.Default(),
 		storage:             storage.New(),
 		storageAOFPersistor: storageAOFPersistor,
@@ -61,14 +58,17 @@ func (s *Server) Start(host string, port int) error {
 
 	s.startupMessage()
 
+	logger.L().Debug("initializing aof persistor service...")
 	go s.storageAOFPersistor.Run(s.tick)
 
 	codec := framecodec.NewLengthFieldBasedFrameCodec(
 		framecodec.NewGNETDefaultLengthFieldBasedFrameEncoderConfig(),
 		framecodec.NewGNETDefaultLengthFieldBasedFrameDecoderConfig())
 
+	logger.L().Debug("server configurations:")
+	logger.L().Debug("- SO_KEEPALIVE: 10 minutes")
+	logger.L().Debug("- Codec: Length-Field-Based-Frame Codec")
 	err := gnet.Serve(s, fmt.Sprintf("tcp://%s:%d", host, port),
-		gnet.WithTicker(true),
 		gnet.WithTCPKeepAlive(10*time.Minute),
 		gnet.WithCodec(codec))
 	if err != nil {
@@ -79,16 +79,20 @@ func (s *Server) Start(host string, port int) error {
 
 func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Action) {
 	data := append([]byte{}, frame...)
+	logger.L().Debugf("received data: %s [%s]", data, conn.RemoteAddr().String())
+	logger.L().Debugf("submitting a task to the worker pool for the given data [%s]", conn.RemoteAddr().String())
 	err := s.pool.Submit(func() {
 		raw := strings.Fields(string(data))
 		if len(raw) < 1 {
+			logger.L().Debugf("client provided a missing command [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte("missing command\n"))
 			if err != nil {
-				s.log.Error(err)
+				logger.L().Error(err)
 			}
 			return
 		}
 
+		logger.L().Debugf("parsing command [%s]", conn.RemoteAddr().String())
 		cmd := strings.ToLower(
 			strings.TrimSpace(raw[0]))
 		args := strings.TrimSpace(
@@ -98,7 +102,7 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 		if err != nil {
 			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
 			if err != nil {
-				s.log.Error(err)
+				logger.L().Error(err)
 			}
 		}
 
@@ -106,25 +110,25 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 		if command == nil {
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
 			if err != nil {
-				s.log.Error(err)
+				logger.L().Error(err)
 			}
 		} else {
 			result := command.Execute(strings.Split(string(args), " "))
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("%s\n", result)))
 			if err != nil {
-				s.log.Error(err)
+				logger.L().Error(err)
 			}
 		}
 	})
 	if err != nil {
-		s.log.Error(err)
+		logger.L().Error(err)
 	}
 
 	return
 }
 
 func (s *Server) OnShutdown(svr gnet.Server) {
-	s.log.Info("Shutting down server...")
+	logger.L().Info("Shutting down server...")
 
 	s.connectedClients.Range(func(key, value interface{}) bool {
 		c := value.(gnet.Conn)
@@ -135,10 +139,11 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 
 	s.storageAOFPersistor.Close()
 
-	s.log.Info("Goodbye 👋")
+	logger.L().Info("Goodbye 👋")
 }
 
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
+	logger.L().Debugf("received a client [%s]", conn.RemoteAddr().String())
 	s.ConnectedCount++
 	s.TotalConnectionsCount++
 
@@ -147,6 +152,7 @@ func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
 }
 
 func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
+	logger.L().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
 	s.ConnectedCount--
 	s.connectedClients.Delete(conn.RemoteAddr().String())
 	return
@@ -164,15 +170,22 @@ func (s *Server) parseCommand(cmd, args string) (command.Op, error) {
 
 	switch string(cmd) {
 	case command.SET.String():
+		logger.L().Debugf("received a write command: %s", command.SET.String())
 		writeToAOF(cmd, args)
+		logger.L().Debug("enqueued the command into the aof persistor queue")
 		return command.SET, nil
 	case command.SETEX.String():
+		logger.L().Debugf("received a write command: %s", command.SETEX.String())
 		writeToAOF(cmd, args)
+		logger.L().Debug("enqueued the command into the aof persistor queue")
 		return command.SETEX, nil
 	case command.DEL.String():
+		logger.L().Debugf("received a write command: %s", command.DEL.String())
 		writeToAOF(cmd, args)
+		logger.L().Debug("enqueued the command into the aof persistor queue")
 		return command.DEL, nil
 	case command.FLUSHALL.String():
+		logger.L().Debugf("received a write command: %s", command.FLUSHALL.String())
 		err := s.storageAOFPersistor.Truncate()
 		if err != nil {
 			return -1, err
@@ -180,19 +193,22 @@ func (s *Server) parseCommand(cmd, args string) (command.Op, error) {
 
 		return command.FLUSHALL, nil
 	case command.GET.String():
+		logger.L().Debugf("received a read command: %s", command.GET.String())
 		return command.GET, nil
 	case command.KEYS.String():
+		logger.L().Debugf("received a read command: %s", command.KEYS.String())
 		return command.KEYS, nil
 	case command.INFO.String():
+		logger.L().Debugf("received a read command: %s", command.INFO.String())
 		return command.INFO, nil
 	}
 	return -1, command.ErrCommandDoesNotExist
 }
 
 func (s *Server) startupMessage() {
-	s.log.Info("kvstore is starting...")
-	s.log.Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
-	s.log.Info("starting gnet event server...")
+	logger.L().Info("kvstore is starting...")
+	logger.L().Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
+	logger.L().Info("starting gnet event server...")
 }
 
 func (s *Server) printLogo(srv gnet.Server) {
@@ -223,6 +239,6 @@ func (s *Server) printLogo(srv gnet.Server) {
 	logo += yellow("                   \"─.|,^\n\n")
 
 	fmt.Printf(logo, s.Version, s.TCPPort, os.Getpid())
-	s.log.Infof("Started kvstore server")
-	s.log.Info("Ready to accept connections.")
+	logger.L().Infof("Started kvstore server")
+	logger.L().Info("Ready to accept connections.")
 }

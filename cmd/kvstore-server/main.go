@@ -26,18 +26,18 @@ func init() {
 
 func main() {
 	flag.Parse()
-	log := logger.New()
+	logger.Init(*debug)
 	server := server.New(version.Version, version.Build)
 
 	if *debug {
-		log.Info("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
+		logger.L().Debug("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
 		go func() {
-			log.Infof("Pprof started -> http://%s:%d/debug/pprof", *host, *port+1)
+			logger.L().Debugf("Pprof started -> http://%s:%d/debug/pprof", *host, *port+1)
 			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", *host, *port+1), nil); err != nil {
-				log.Fatalf("pprof failed: %v", err)
+				logger.L().Fatalf("pprof failed: %v", err)
 			}
 		}()
 	}
 
-	log.Fatal(server.Start(*host, *port))
+	logger.L().Fatal(server.Start(*host, *port))
 }
