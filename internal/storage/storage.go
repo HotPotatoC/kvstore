@@ -35,7 +35,7 @@ type storage struct {
 	hashtable *hashtable.HashTable
 }
 
-// New creates a new storage
+// New creates a new storage for data structures
 func New() Store {
 	return &storage{
 		hashtable: hashtable.New(),

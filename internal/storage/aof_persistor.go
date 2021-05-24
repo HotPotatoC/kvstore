@@ -18,6 +18,7 @@ const defaultAOFFileName = "kvstore-aof.log"
 type AOFPersistor struct {
 	file   *os.File
 	writer *bufio.Writer
+	reader *bufio.Scanner
 	mtx    sync.Mutex
 
 	quit chan struct{}
@@ -53,6 +54,7 @@ func NewAOFPersistor(path ...string) (*AOFPersistor, error) {
 	persistor := &AOFPersistor{
 		file:   file,
 		writer: bufio.NewWriter(file),
+		reader: bufio.NewScanner(file),
 		quit:   make(chan struct{}),
 	}
 
@@ -85,13 +87,38 @@ func (aof *AOFPersistor) Run(after time.Duration) {
 	}()
 }
 
-// Add enqueue the given data into the AOF writer and will be
+func (aof *AOFPersistor) Read() <-chan string {
+	l := make(chan string)
+	go func() {
+		aof.mtx.Lock()
+		for aof.reader.Scan() {
+			l <- aof.reader.Text()
+		}
+		close(l)
+		aof.mtx.Unlock()
+	}()
+	return l
+}
+
+// Write enqueue the given data into the AOF writer and will be
 // written to the log file after a given amount of tick has passed
-func (aof *AOFPersistor) Add(data string) {
+func (aof *AOFPersistor) Write(data string) {
 	aof.mtx.Lock()
+	defer aof.mtx.Unlock()
 	fmt.Fprintln(aof.writer, data)
 	logger.L().Debugf("wrote %s to the aof writer", data)
-	aof.mtx.Unlock()
+}
+
+// Flush flushes buffered inputs manually
+func (aof *AOFPersistor) Flush() error {
+	aof.mtx.Lock()
+	defer aof.mtx.Unlock()
+	err := aof.writer.Flush()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Truncate completely clears the AOF log file content
@@ -100,6 +127,13 @@ func (aof *AOFPersistor) Truncate() error {
 	defer aof.mtx.Unlock()
 	logger.L().Debug("truncating aof log")
 	return aof.file.Truncate(0)
+}
+
+// File exposes the AOF Persistor log file os.File struct
+func (aof *AOFPersistor) File() *os.File {
+	aof.mtx.Lock()
+	defer aof.mtx.Unlock()
+	return aof.file
 }
 
 // Close simply closes the file

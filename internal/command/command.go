@@ -1,6 +1,9 @@
 package command
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/HotPotatoC/kvstore/internal/storage"
 )
@@ -23,6 +26,12 @@ const (
 	FLUSHALL
 	// INFO displays the current status of the server (memory allocs, connected clients, uptime, etc.)
 	INFO
+)
+
+const (
+	ReadMode    = "r"
+	WriteMode   = "w"
+	PersistMode = "+"
 )
 
 func (c Op) String() string {
@@ -67,10 +76,32 @@ func (c Op) Description() string {
 	}[c]
 }
 
+// Opts is the command operation options which can be
+// Read (r), Write (w) and Persist (+)
+func (c Op) Opts() string {
+	return [...]string{
+		fmt.Sprintf("%s%s", PersistMode, WriteMode),
+		fmt.Sprintf("%s%s", PersistMode, WriteMode),
+		ReadMode,
+		fmt.Sprintf("%s%s", PersistMode, WriteMode),
+		ReadMode,
+		fmt.Sprintf("%s%s", PersistMode, WriteMode),
+		ReadMode,
+	}[c]
+}
+
 // Command is the set of methods for a commmand
 type Command interface {
 	String() string
 	Execute(args []string) []byte
+}
+
+type Options struct {
+	Op      Op
+	Full    string
+	Command string
+	Args    []string
+	Mode    []string
 }
 
 // New constructs the given command operation
@@ -96,4 +127,43 @@ func New(db storage.Store, stats *stats.Stats, cmd Op) Command {
 	}
 
 	return command
+}
+
+func Parse(input string) (Options, error) {
+	raw := strings.Fields(string(input))
+	cmd := strings.ToLower(
+		strings.TrimSpace(raw[0]))
+	args := strings.Split(
+		strings.TrimSpace(
+			strings.TrimPrefix(
+				string(input), raw[0])),
+		" ")
+
+	var op Op
+	switch string(cmd) {
+	case SET.String():
+		op = SET
+	case SETEX.String():
+		op = SETEX
+	case DEL.String():
+		op = DEL
+	case FLUSHALL.String():
+		op = FLUSHALL
+	case GET.String():
+		op = GET
+	case KEYS.String():
+		op = KEYS
+	case INFO.String():
+		op = INFO
+	default:
+		return Options{}, ErrCommandDoesNotExist
+	}
+
+	return Options{
+		Op:      op,
+		Full:    fmt.Sprintf("%s %s", op.String(), strings.Join(args, " ")),
+		Command: op.String(),
+		Args:    args,
+		Mode:    strings.Split(op.Opts(), ""),
+	}, nil
 }

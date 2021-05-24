@@ -58,7 +58,18 @@ func (s *Server) Start(host string, port int) error {
 
 	s.startupMessage()
 
-	logger.L().Debug("initializing aof persistor service...")
+	logger.L().Debug("initializing AOF persistor service...")
+	logger.L().Debug("reading AOF log...")
+	for cmdStr := range s.storageAOFPersistor.Read() {
+		opts, err := command.Parse(cmdStr)
+		if err != nil {
+			logger.L().Errorf("err parsing command: %v", err)
+			continue
+		}
+
+		command.New(s.storage, s.Stats, opts.Op).Execute(opts.Args)
+	}
+
 	go s.storageAOFPersistor.Run(s.tick)
 
 	codec := framecodec.NewLengthFieldBasedFrameCodec(
@@ -79,6 +90,8 @@ func (s *Server) Start(host string, port int) error {
 
 func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Action) {
 	data := append([]byte{}, frame...)
+	conn.ResetBuffer()
+
 	logger.L().Debugf("received data: %s [%s]", data, conn.RemoteAddr().String())
 	logger.L().Debugf("submitting a task to the worker pool for the given data [%s]", conn.RemoteAddr().String())
 	err := s.pool.Submit(func() {
@@ -93,30 +106,40 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 		}
 
 		logger.L().Debugf("parsing command [%s]", conn.RemoteAddr().String())
-		cmd := strings.ToLower(
-			strings.TrimSpace(raw[0]))
-		args := strings.TrimSpace(
-			strings.TrimPrefix(string(data), raw[0]))
-
-		op, err := s.parseCommand(cmd, args)
+		opts, err := command.Parse(string(data))
 		if err != nil {
-			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
 				logger.L().Error(err)
 			}
 		}
 
-		command := command.New(s.storage, s.Stats, op)
-		if command == nil {
-			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", cmd)))
+		cmd := command.New(s.storage, s.Stats, opts.Op)
+		if cmd == nil {
+			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
 				logger.L().Error(err)
 			}
 		} else {
-			result := command.Execute(strings.Split(string(args), " "))
+			result := cmd.Execute(opts.Args)
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("%s\n", result)))
 			if err != nil {
 				logger.L().Error(err)
+			}
+
+			if opts.Mode[0] == command.PersistMode {
+				if opts.Op == command.FLUSHALL {
+					logger.L().Debugf("received a flushall command")
+					logger.L().Debugf("truncating AOF log")
+					err := s.storageAOFPersistor.Truncate()
+					if err != nil {
+						logger.L().Error(err)
+					}
+				} else {
+					logger.L().Debugf("received a persist-enabled command: %s", command.SETEX.String())
+					s.storageAOFPersistor.Write(opts.Full)
+					logger.L().Debug("enqueued the command into the AOF persistor queue")
+				}
 			}
 		}
 	})
@@ -137,13 +160,18 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 		return true
 	})
 
+	err := s.storageAOFPersistor.Flush()
+	if err != nil {
+		logger.L().Error(err)
+	}
+
 	s.storageAOFPersistor.Close()
 
-	logger.L().Info("Goodbye 👋")
+	logger.L().Info("Goodbye")
 }
 
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
-	logger.L().Debugf("received a client [%s]", conn.RemoteAddr().String())
+	logger.L().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
 	s.ConnectedCount++
 	s.TotalConnectionsCount++
 
@@ -161,48 +189,6 @@ func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
 func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 	s.printLogo(srv)
 	return
-}
-
-func (s *Server) parseCommand(cmd, args string) (command.Op, error) {
-	writeToAOF := func(cmd, args string) {
-		s.storageAOFPersistor.Add(fmt.Sprintf("%s %s", cmd, args))
-	}
-
-	switch string(cmd) {
-	case command.SET.String():
-		logger.L().Debugf("received a write command: %s", command.SET.String())
-		writeToAOF(cmd, args)
-		logger.L().Debug("enqueued the command into the aof persistor queue")
-		return command.SET, nil
-	case command.SETEX.String():
-		logger.L().Debugf("received a write command: %s", command.SETEX.String())
-		writeToAOF(cmd, args)
-		logger.L().Debug("enqueued the command into the aof persistor queue")
-		return command.SETEX, nil
-	case command.DEL.String():
-		logger.L().Debugf("received a write command: %s", command.DEL.String())
-		writeToAOF(cmd, args)
-		logger.L().Debug("enqueued the command into the aof persistor queue")
-		return command.DEL, nil
-	case command.FLUSHALL.String():
-		logger.L().Debugf("received a write command: %s", command.FLUSHALL.String())
-		err := s.storageAOFPersistor.Truncate()
-		if err != nil {
-			return -1, err
-		}
-
-		return command.FLUSHALL, nil
-	case command.GET.String():
-		logger.L().Debugf("received a read command: %s", command.GET.String())
-		return command.GET, nil
-	case command.KEYS.String():
-		logger.L().Debugf("received a read command: %s", command.KEYS.String())
-		return command.KEYS, nil
-	case command.INFO.String():
-		logger.L().Debugf("received a read command: %s", command.INFO.String())
-		return command.INFO, nil
-	}
-	return -1, command.ErrCommandDoesNotExist
 }
 
 func (s *Server) startupMessage() {

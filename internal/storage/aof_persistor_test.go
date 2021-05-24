@@ -29,7 +29,7 @@ func TestAOFPersistor(t *testing.T) {
 		"set 2 2"}
 
 	for _, tt := range tc {
-		aof.Add(tt)
+		aof.Write(tt)
 	}
 
 	time.Sleep(2 * time.Second)
@@ -83,7 +83,7 @@ func TestAOFPersistor_Truncate(t *testing.T) {
 		"set 2 2"}
 
 	for _, tt := range tc {
-		aof.Add(tt)
+		aof.Write(tt)
 	}
 
 	time.Sleep(2 * time.Second)
