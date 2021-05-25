@@ -111,6 +111,7 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 | KEYS                          | Display all the saved keys in the database                                                      |
 | FLUSHALL                      | Delete all keys                                                                                 |
 | INFO                          | Display the current stats of the server (OS, mem usage, total connections, etc.) in json format |
+| PING                          | Pings the server                                                                                |
 
 # Contributing
 

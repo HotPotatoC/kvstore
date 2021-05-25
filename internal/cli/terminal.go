@@ -22,6 +22,7 @@ func newTerminal() *liner.State {
 			command.KEYS,
 			command.FLUSHALL,
 			command.INFO,
+			command.PING,
 		}
 		for _, n := range commands {
 			if strings.HasPrefix(n.String(), strings.ToLower(s)) {

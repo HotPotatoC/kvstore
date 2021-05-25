@@ -26,6 +26,8 @@ const (
 	FLUSHALL
 	// INFO displays the current status of the server (memory allocs, connected clients, uptime, etc.)
 	INFO
+	// Pings the server
+	PING
 )
 
 const (
@@ -35,7 +37,16 @@ const (
 )
 
 func (c Op) String() string {
-	return [...]string{"set", "setex", "get", "del", "keys", "flushall", "info"}[c]
+	return [...]string{
+		"set",
+		"setex",
+		"get",
+		"del",
+		"keys",
+		"flushall",
+		"info",
+		"ping",
+	}[c]
 }
 
 func (c Op) Bytes() []byte {
@@ -47,6 +58,7 @@ func (c Op) Bytes() []byte {
 		[]byte("keys"),
 		[]byte("flushall"),
 		[]byte("info"),
+		[]byte("ping"),
 	}[c]
 }
 
@@ -57,6 +69,7 @@ func (c Op) Args() string {
 		"key value [exp seconds]",
 		"key",
 		"key",
+		"",
 		"",
 		"",
 		"",
@@ -73,6 +86,7 @@ func (c Op) Description() string {
 		"Display all the saved keys in the database",
 		"Delete all keys",
 		"Display the current stats of the server (OS, mem usage, total connections, etc.) in json format",
+		"Pings the server",
 	}[c]
 }
 
@@ -86,6 +100,7 @@ func (c Op) Opts() string {
 		fmt.Sprintf("%s%s", PersistMode, WriteMode),
 		ReadMode,
 		fmt.Sprintf("%s%s", PersistMode, WriteMode),
+		ReadMode,
 		ReadMode,
 	}[c]
 }
@@ -122,6 +137,8 @@ func New(db storage.Store, stats *stats.Stats, cmd Op) Command {
 		command = makeFlushAllCommand(db)
 	case INFO:
 		command = makeInfoCommand(db, stats)
+	case PING:
+		command = makePingCommand(db)
 	default:
 		command = nil
 	}
@@ -155,6 +172,8 @@ func Parse(input string) (Options, error) {
 		op = KEYS
 	case INFO.String():
 		op = INFO
+	case PING.String():
+		op = PING
 	default:
 		return Options{}, ErrCommandDoesNotExist
 	}

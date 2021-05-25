@@ -79,7 +79,9 @@ func (c *CLI) Start() {
 				command.KEYS,
 				command.FLUSHALL,
 				command.INFO,
+				command.PING,
 			}
+
 			color.Set(color.FgHiYellow)
 			fmt.Println("NOTE: All commands are case-insensitive")
 			color.Unset()
@@ -99,7 +101,7 @@ func (c *CLI) Start() {
 		// This is where commands are parsed and processed inputs are sent to the server
 		default:
 			if err != nil {
-				logger.L().Error(err)
+				fmt.Println(err)
 				continue
 			}
 
