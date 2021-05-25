@@ -1,0 +1,32 @@
+# This is an example of a kvstore server configuration file
+
+# Database Server configurations
+[server]
+host = "0.0.0.0"
+port = 7275
+protocol = "tcp"
+
+# Sets up multicore for the server
+multicore = false
+
+# Enable this to start multiple kvstore instances
+# listening to the same port
+reuse_port = false
+
+# Sets the cap for reading bytes
+read_buffer_cap = 33554432  # Default is 32mb
+
+# SO_KEEPALIVE socket option
+tcp_keep_alive = true
+tcp_keep_alive_duration = 600 # seconds
+
+# Append-Only File configurations
+[aof]
+enabled = true
+
+# AOF Log file path [default: Current working directory]
+path = "./kvstore-aof.log"
+
+# Used for flushing buffered commands into the log file after the amount
+# of configured seconds have passed
+persist_after = 60 # seconds

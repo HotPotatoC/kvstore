@@ -16,6 +16,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -26,62 +28,82 @@ type Server struct {
 
 	connectedClients sync.Map
 
-	storage             storage.Store
-	storageAOFPersistor *storage.AOFPersistor
+	storage storage.Store
+	aof     storage.Persistor
 
-	tick         time.Duration
 	commandQueue chan string
 }
 
 func New(version string, build string) *Server {
-	storageAOFPersistor, err := storage.NewAOFPersistor()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return &Server{
 		Stats: &stats.Stats{
 			Version: version,
 			Build:   build,
 		},
-		pool:                goroutine.Default(),
-		storage:             storage.New(),
-		storageAOFPersistor: storageAOFPersistor,
-		tick:                60 * time.Second,
-		commandQueue:        make(chan string),
+		pool:         goroutine.Default(),
+		storage:      storage.New(),
+		commandQueue: make(chan string),
 	}
 }
 
-func (s *Server) Start(host string, port int) error {
-	s.TCPHost = host
-	s.TCPPort = port
+func (s *Server) Start() error {
+	s.TCPHost = viper.GetString("server.host")
+	s.TCPPort = viper.GetInt("server.port")
 
 	s.startupMessage()
-
-	logger.L().Debug("initializing AOF persistor service...")
-	logger.L().Debug("reading AOF log...")
-	for cmdStr := range s.storageAOFPersistor.Read() {
-		opts, err := command.Parse(cmdStr)
-		if err != nil {
-			logger.L().Errorf("err parsing command: %v", err)
-			continue
-		}
-
-		command.New(s.storage, s.Stats, opts.Op).Execute(opts.Args)
-	}
-
-	go s.storageAOFPersistor.Run(s.tick)
 
 	codec := framecodec.NewLengthFieldBasedFrameCodec(
 		framecodec.NewGNETDefaultLengthFieldBasedFrameEncoderConfig(),
 		framecodec.NewGNETDefaultLengthFieldBasedFrameDecoderConfig())
 
-	logger.L().Debug("server configurations:")
-	logger.L().Debug("- SO_KEEPALIVE: 10 minutes")
-	logger.L().Debug("- Codec: Length-Field-Based-Frame Codec")
-	err := gnet.Serve(s, fmt.Sprintf("tcp://%s:%d", host, port),
-		gnet.WithTCPKeepAlive(10*time.Minute),
-		gnet.WithCodec(codec))
+	addr := fmt.Sprintf("%s://%s:%d",
+		viper.GetString("server.protocol"),
+		viper.GetString("server.host"),
+		viper.GetInt("server.port"))
+
+	opts := []gnet.Option{
+		gnet.WithMulticore(viper.GetBool("server.multicore")),
+		gnet.WithReusePort(viper.GetBool("server.reuse_port")),
+		gnet.WithReadBufferCap(viper.GetInt("server.read_buffer_cap")),
+		gnet.WithLogger(zap.L().Sugar()),
+		gnet.WithCodec(codec),
+	}
+
+	if viper.GetBool("server.tcp_keep_alive") {
+		opts = append(opts, gnet.WithTCPKeepAlive(
+			viper.GetDuration("server.tcp_keep_alive_duration")*time.Second))
+	}
+
+	if viper.GetBool("aof.enabled") {
+		aof, err := storage.NewAOFPersistor(viper.GetString("aof.path"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s.aof = aof
+
+		logger.L().Debug("initializing AOF persistor service...")
+		logger.L().Debug("reading AOF log...")
+
+		for cmdStr := range s.aof.Read() {
+			opts, err := command.Parse(cmdStr)
+			if err != nil {
+				logger.L().Errorf("err parsing command: %v", err)
+				continue
+			}
+
+			command.New(s.storage, s.Stats, opts.Op).Execute(opts.Args)
+		}
+
+		go s.aof.Run(viper.GetDuration("aof.persist_after") * time.Second)
+	} else {
+		// Use a mock version of AOF Persistor
+		aof, _ := storage.NewMockAOFPersistor()
+
+		s.aof = aof
+	}
+
+	err := gnet.Serve(s, addr, opts...)
 	if err != nil {
 		return err
 	}
@@ -131,13 +153,13 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 				if opts.Op == command.FLUSHALL {
 					logger.L().Debugf("received a flushall command")
 					logger.L().Debugf("truncating AOF log")
-					err := s.storageAOFPersistor.Truncate()
+					err := s.aof.Truncate()
 					if err != nil {
 						logger.L().Error(err)
 					}
 				} else {
 					logger.L().Debugf("received a persist-enabled command: %s", command.SETEX.String())
-					s.storageAOFPersistor.Write(opts.Full)
+					s.aof.Write(opts.Full)
 					logger.L().Debug("enqueued the command into the AOF persistor queue")
 				}
 			}
@@ -160,12 +182,12 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 		return true
 	})
 
-	err := s.storageAOFPersistor.Flush()
+	err := s.aof.Flush()
 	if err != nil {
 		logger.L().Error(err)
 	}
 
-	s.storageAOFPersistor.Close()
+	s.aof.Close()
 
 	logger.L().Info("Goodbye")
 }

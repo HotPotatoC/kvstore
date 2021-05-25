@@ -15,7 +15,7 @@ const defaultAOFFileName = "kvstore-aof.log"
 
 // AOFPersistor (Append-Only File Persistor) is used to persist the storage
 // data in an Append-Only file
-type AOFPersistor struct {
+type aofPersistor struct {
 	file   *os.File
 	writer *bufio.Writer
 	reader *bufio.Scanner
@@ -24,9 +24,11 @@ type AOFPersistor struct {
 	quit chan struct{}
 }
 
+var _ Persistor = (*aofPersistor)(nil)
+
 // NewAOFPersistor creates a new append only file
 // if no path is provided it will default to the current working directory
-func NewAOFPersistor(path ...string) (*AOFPersistor, error) {
+func NewAOFPersistor(path ...string) (Persistor, error) {
 	var pathToFile string
 
 	if len(path) < 1 {
@@ -51,7 +53,7 @@ func NewAOFPersistor(path ...string) (*AOFPersistor, error) {
 		return nil, err
 	}
 
-	persistor := &AOFPersistor{
+	persistor := &aofPersistor{
 		file:   file,
 		writer: bufio.NewWriter(file),
 		reader: bufio.NewScanner(file),
@@ -63,7 +65,7 @@ func NewAOFPersistor(path ...string) (*AOFPersistor, error) {
 
 // Run starts the AOF persistor infinite loop in the background and will
 // flush data into the log file every given amount of time
-func (aof *AOFPersistor) Run(after time.Duration) {
+func (aof *aofPersistor) Run(after time.Duration) {
 	go func() {
 		t := time.NewTicker(after)
 		defer t.Stop()
@@ -87,13 +89,13 @@ func (aof *AOFPersistor) Run(after time.Duration) {
 	}()
 }
 
-// Read reads the AOF log using bufio.Scanner line per line
+// Read reads the AOF log using bufio.Scanner per line
 //
 // Usage:
 //	for data := range aof.Read() {
 //		fmt.Println(data)
 //	}
-func (aof *AOFPersistor) Read() <-chan string {
+func (aof *aofPersistor) Read() <-chan string {
 	l := make(chan string)
 	go func() {
 		aof.mtx.Lock()
@@ -108,7 +110,7 @@ func (aof *AOFPersistor) Read() <-chan string {
 
 // Write enqueue the given data into the AOF writer and will be
 // written to the log file after a given amount of tick has passed
-func (aof *AOFPersistor) Write(data string) {
+func (aof *aofPersistor) Write(data string) {
 	aof.mtx.Lock()
 	defer aof.mtx.Unlock()
 	fmt.Fprintln(aof.writer, data)
@@ -116,7 +118,7 @@ func (aof *AOFPersistor) Write(data string) {
 }
 
 // Flush flushes buffered inputs manually
-func (aof *AOFPersistor) Flush() error {
+func (aof *aofPersistor) Flush() error {
 	aof.mtx.Lock()
 	defer aof.mtx.Unlock()
 	err := aof.writer.Flush()
@@ -128,7 +130,7 @@ func (aof *AOFPersistor) Flush() error {
 }
 
 // Truncate completely clears the AOF log file content
-func (aof *AOFPersistor) Truncate() error {
+func (aof *aofPersistor) Truncate() error {
 	aof.mtx.Lock()
 	defer aof.mtx.Unlock()
 	logger.L().Debug("truncating aof log")
@@ -136,14 +138,14 @@ func (aof *AOFPersistor) Truncate() error {
 }
 
 // File exposes the AOF Persistor log file os.File struct
-func (aof *AOFPersistor) File() *os.File {
+func (aof *aofPersistor) File() *os.File {
 	aof.mtx.Lock()
 	defer aof.mtx.Unlock()
 	return aof.file
 }
 
 // Close simply closes the file
-func (aof *AOFPersistor) Close() error {
+func (aof *aofPersistor) Close() error {
 	logger.L().Debug("closing aof data persistor service")
 	aof.quit <- struct{}{}
 	aof.file.Sync()
