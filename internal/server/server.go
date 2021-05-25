@@ -129,6 +129,8 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 		logger.L().Debugf("parsing command [%s]", conn.RemoteAddr().String())
 		opts, err := command.Parse(string(data))
 		if err != nil {
+			logger.L().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
+			logger.L().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
 			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
 				logger.L().Error(err)
@@ -137,12 +139,15 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 
 		cmd := command.New(s.storage, s.stats, opts.Op)
 		if cmd == nil {
+			logger.L().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
+			logger.L().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
 				logger.L().Error(err)
 			}
 		} else {
 			result := cmd.Execute(opts.Args)
+			logger.L().Debugf("sending data to the client [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("%s\n", result)))
 			if err != nil {
 				logger.L().Error(err)
@@ -163,6 +168,8 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 				}
 			}
 		}
+
+		logger.L().Debugf("task done [%s]", conn.RemoteAddr().String())
 	})
 	if err != nil {
 		logger.L().Error(err)

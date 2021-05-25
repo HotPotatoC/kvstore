@@ -16,7 +16,7 @@ func Init(debug bool) {
 		atom.SetLevel(zap.InfoLevel)
 	}
 
-	encoder := zap.NewDevelopmentEncoderConfig()
+	encoder := zap.NewProductionEncoderConfig()
 	encoder.EncodeLevel = nil
 
 	logger := zap.New(zapcore.NewCore(

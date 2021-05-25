@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"os"
+	"syscall"
 
 	"github.com/HotPotatoC/kvstore/internal/config"
 	"github.com/HotPotatoC/kvstore/internal/logger"
 	"github.com/HotPotatoC/kvstore/internal/server"
+	"github.com/HotPotatoC/kvstore/internal/util"
 	"github.com/HotPotatoC/kvstore/internal/version"
+	"github.com/panjf2000/gnet"
 	"github.com/spf13/viper"
 
 	"net/http"
@@ -48,5 +53,18 @@ func main() {
 		}()
 	}
 
-	logger.L().Fatal(server.Start())
+	go func() {
+		if err := server.Start(); err != nil {
+			logger.L().Fatal(err)
+		}
+	}()
+
+	recv := <-util.WaitForSignals(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	logger.L().Debugf("received interrupt signal: %s", recv)
+
+	gnet.Stop(context.Background(), fmt.Sprintf("%s://%s:%d",
+		viper.GetString("server.protocol"),
+		viper.GetString("server.host"),
+		viper.GetInt("server.port")))
 }
