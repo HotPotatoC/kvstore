@@ -41,7 +41,7 @@ test: ## Runs unit tests [cmd: go test -v -bench . -benchmem ./...]
 	@$(GO) test -v -bench . -benchmem ./...
 
 .PHONY: test-race
-test-race: ## Runs unit tests [cmd: go test -v -bench . -benchmem ./...]
+test-race: ## Runs unit tests [cmd: go test -v -race -bench . -benchmem ./...]
 	@$(GO) test -v -race -bench . -benchmem ./...
 
 .PHONY: coverage-report
