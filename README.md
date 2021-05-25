@@ -108,7 +108,6 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 | SETEX [key] [value] [seconds] | Insert a new expirable entry into the database                                                  |
 | GET [key]                     | Return the data in the database with the matching key                                           |
 | DEL [key]                     | Remove an entry in the database with the matching key                                           |
-| LIST                          | Display all the saved data in the database with the format `[key] -> [value]`                   |
 | KEYS                          | Display all the saved keys in the database                                                      |
 | FLUSHALL                      | Delete all keys                                                                                 |
 | INFO                          | Display the current stats of the server (OS, mem usage, total connections, etc.) in json format |
