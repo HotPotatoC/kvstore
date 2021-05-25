@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/HotPotatoC/kvstore/internal/command"
 	"github.com/HotPotatoC/kvstore/internal/framecodec"
+	"github.com/HotPotatoC/kvstore/internal/logger"
 	"github.com/HotPotatoC/kvstore/internal/server/stats"
 	"github.com/fatih/color"
 	"github.com/peterh/liner"
@@ -29,7 +29,7 @@ type CLI struct {
 func New(addr string) *CLI {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		log.Fatal(err)
+		logger.L().Fatal(err)
 	}
 
 	connWithCodec := framecodec.NewLengthFieldBasedFrameCodecConn(
@@ -54,7 +54,7 @@ func (c *CLI) Start() {
 	for {
 		input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.conn.Conn().RemoteAddr().String()))
 		if err != nil && !errors.Is(err, io.EOF) {
-			log.Fatal(err)
+			logger.L().Fatal(err)
 		}
 
 		if input == "" {
@@ -62,7 +62,11 @@ func (c *CLI) Start() {
 		}
 
 		c.terminal.AppendHistory(input)
-		cmd, args := c.parseCommand(input)
+		raw := strings.Fields(input)[0]
+		cmd := strings.ToLower(
+			strings.TrimSpace(raw))
+
+		opts, err := command.Parse(input)
 
 		switch cmd {
 		// Displays all available commands with their args and description
@@ -94,36 +98,19 @@ func (c *CLI) Start() {
 			os.Exit(0)
 		// This is where commands are parsed and processed inputs are sent to the server
 		default:
-			var op command.Op
-
-			switch cmd {
-			case command.SET.String():
-				op = command.SET
-			case command.SETEX.String():
-				op = command.SETEX
-			case command.GET.String():
-				op = command.GET
-			case command.DEL.String():
-				op = command.DEL
-			case command.KEYS.String():
-				op = command.KEYS
-			case command.FLUSHALL.String():
-				op = command.FLUSHALL
-			case command.INFO.String():
-				op = command.INFO
-			default:
-				fmt.Printf("Command '%s' does not exist\n", cmd)
+			if err != nil {
+				logger.L().Error(err)
 				continue
 			}
 
-			err = c.conn.WriteFrame([]byte(fmt.Sprintf("%s %s", op.String(), args)))
+			err = c.conn.WriteFrame([]byte(opts.Full))
 			if err != nil && err != io.EOF {
-				log.Fatal(err)
+				logger.L().Fatal(err)
 			}
 
 			msg, err := c.conn.ReadFrame()
 			if err != nil && err != io.EOF {
-				log.Fatal(err)
+				logger.L().Fatal(err)
 			}
 
 			fmt.Print(string(msg))
@@ -144,28 +131,18 @@ func (c *CLI) getServerInformation() *stats.Stats {
 
 	err := c.conn.WriteFrame(command.INFO.Bytes())
 	if err != nil && err != io.EOF {
-		log.Fatal(err)
+		logger.L().Fatal(err)
 	}
 
 	infoMessage, err := c.conn.ReadFrame()
 	if err != nil && err != io.EOF {
-		log.Fatal(err)
+		logger.L().Fatal(err)
 	}
 
 	err = json.Unmarshal(infoMessage, &serverStats)
 	if err != nil {
-		log.Fatal(err)
+		logger.L().Fatal(err)
 	}
 
 	return &serverStats
-}
-
-func (c *CLI) parseCommand(input string) (string, string) {
-	raw := strings.Fields(input)[0]
-	cmd := strings.ToLower(
-		strings.TrimSpace(raw))
-	args := strings.TrimSpace(
-		strings.TrimPrefix(input, raw))
-
-	return cmd, args
 }
