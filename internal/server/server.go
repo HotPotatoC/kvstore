@@ -22,7 +22,7 @@ import (
 
 type Server struct {
 	*gnet.EventServer
-	*stats.Stats
+	stats *stats.Stats
 
 	pool *goroutine.Pool
 
@@ -36,7 +36,7 @@ type Server struct {
 
 func New(version string, build string) *Server {
 	return &Server{
-		Stats: &stats.Stats{
+		stats: &stats.Stats{
 			Version: version,
 			Build:   build,
 		},
@@ -47,8 +47,10 @@ func New(version string, build string) *Server {
 }
 
 func (s *Server) Start() error {
-	s.TCPHost = viper.GetString("server.host")
-	s.TCPPort = viper.GetInt("server.port")
+	s.stats.TCPHost = viper.GetString("server.host")
+	s.stats.TCPPort = viper.GetInt("server.port")
+
+	s.stats.Init()
 
 	s.startupMessage()
 
@@ -92,7 +94,7 @@ func (s *Server) Start() error {
 				continue
 			}
 
-			command.New(s.storage, s.Stats, opts.Op).Execute(opts.Args)
+			command.New(s.storage, s.stats, opts.Op).Execute(opts.Args)
 		}
 
 		go s.aof.Run(viper.GetDuration("aof.persist_after") * time.Second)
@@ -136,7 +138,7 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 			}
 		}
 
-		cmd := command.New(s.storage, s.Stats, opts.Op)
+		cmd := command.New(s.storage, s.stats, opts.Op)
 		if cmd == nil {
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
@@ -194,8 +196,8 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
 	logger.L().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
-	s.ConnectedCount++
-	s.TotalConnectionsCount++
+	s.stats.ConnectedCount++
+	s.stats.TotalConnectionsCount++
 
 	s.connectedClients.Store(conn.RemoteAddr().String(), conn)
 	return
@@ -203,7 +205,7 @@ func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
 
 func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
 	logger.L().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
-	s.ConnectedCount--
+	s.stats.ConnectedCount--
 	s.connectedClients.Delete(conn.RemoteAddr().String())
 	return
 }
@@ -215,7 +217,7 @@ func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 
 func (s *Server) startupMessage() {
 	logger.L().Info("kvstore is starting...")
-	logger.L().Infof("version=%s build=%s pid=%d", s.Version, s.Build, os.Getpid())
+	logger.L().Infof("version=%s build=%s pid=%d", s.stats.Version, s.stats.Build, os.Getpid())
 	logger.L().Info("starting gnet event server...")
 }
 
@@ -246,7 +248,7 @@ func (s *Server) printLogo(srv gnet.Server) {
 	logo += yellow("                ╙.    |    ⌐*\n")
 	logo += yellow("                   \"─.|,^\n\n")
 
-	fmt.Printf(logo, s.Version, s.TCPPort, os.Getpid())
+	fmt.Printf(logo, s.stats.Version, s.stats.TCPPort, os.Getpid())
 	logger.L().Infof("Started kvstore server")
 	logger.L().Info("Ready to accept connections.")
 }
