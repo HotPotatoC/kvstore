@@ -87,6 +87,12 @@ func (aof *AOFPersistor) Run(after time.Duration) {
 	}()
 }
 
+// Read reads the AOF log using bufio.Scanner line per line
+//
+// Usage:
+//	for data := range aof.Read() {
+//		fmt.Println(data)
+//	}
 func (aof *AOFPersistor) Read() <-chan string {
 	l := make(chan string)
 	go func() {
