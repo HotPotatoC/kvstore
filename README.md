@@ -1,8 +1,6 @@
-![kvstore](.github/kvstore.png)
-
 # **kvstore**
 
-**kvstore** is an in-memory database server with the key-value model.
+an experimental in-memory database server with the key-value data model.
 
 ![kvstore in action](.github/kvstore.gif)
 
@@ -112,7 +110,7 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 | DEL [key]                     | Remove an entry in the database with the matching key                                           |
 | LIST                          | Display all the saved data in the database with the format `[key] -> [value]`                   |
 | KEYS                          | Display all the saved keys in the database                                                      |
-| FLUSH                         | Delete all keys                                                                                 |
+| FLUSHALL                      | Delete all keys                                                                                 |
 | INFO                          | Display the current stats of the server (OS, mem usage, total connections, etc.) in json format |
 
 # Contributing
