@@ -30,8 +30,6 @@ type Server struct {
 
 	storage storage.Store
 	aof     storage.Persistor
-
-	commandQueue chan string
 }
 
 func New(version string, build string) *Server {
@@ -40,9 +38,8 @@ func New(version string, build string) *Server {
 			Version: version,
 			Build:   build,
 		},
-		pool:         goroutine.Default(),
-		storage:      storage.New(),
-		commandQueue: make(chan string),
+		pool:    goroutine.Default(),
+		storage: storage.New(),
 	}
 }
 
