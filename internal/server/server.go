@@ -81,13 +81,13 @@ func (s *Server) Start() error {
 
 		s.aof = aof
 
-		logger.L().Debug("initializing AOF persistor service...")
-		logger.L().Debug("reading AOF log...")
+		logger.S().Debug("initializing AOF persistor service...")
+		logger.S().Debug("reading AOF log...")
 
 		for cmdStr := range s.aof.Read() {
 			opts, err := command.Parse(cmdStr)
 			if err != nil {
-				logger.L().Errorf("err parsing command: %v", err)
+				logger.S().Errorf("err parsing command: %v", err)
 				continue
 			}
 
@@ -113,73 +113,72 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 	data := append([]byte{}, frame...)
 	conn.ResetBuffer()
 
-	logger.L().Debugf("received data: %s [%s]", data, conn.RemoteAddr().String())
-	logger.L().Debugf("submitting a task to the worker pool for the given data [%s]", conn.RemoteAddr().String())
+	logger.S().Debugf("received data: %s [%s]", data, conn.RemoteAddr().String())
+	logger.S().Debugf("submitting a task to the worker pool for the given data [%s]", conn.RemoteAddr().String())
 	err := s.pool.Submit(func() {
 		raw := strings.Fields(string(data))
 		if len(raw) < 1 {
-			logger.L().Debugf("client provided a missing command [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("client provided a missing command [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte("missing command\n"))
 			if err != nil {
-				logger.L().Error(err)
+				logger.S().Error(err)
 			}
 			return
 		}
 
-		logger.L().Debugf("parsing command [%s]", conn.RemoteAddr().String())
+		logger.S().Debugf("parsing command [%s]", conn.RemoteAddr().String())
 		opts, err := command.Parse(string(data))
 		if err != nil {
-			logger.L().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
-			logger.L().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
 			err = conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
-				logger.L().Error(err)
+				logger.S().Error(err)
 			}
 		}
 
 		cmd := command.New(s.storage, s.stats, opts.Op)
 		if cmd == nil {
-			logger.L().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
-			logger.L().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("the command does not exists [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("sending notice to the client [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("Command '%s' does not exist\n", opts.Command)))
 			if err != nil {
-				logger.L().Error(err)
+				logger.S().Error(err)
 			}
 		} else {
 			result := cmd.Execute(opts.Args)
-			logger.L().Debugf("sending data to the client [%s]", conn.RemoteAddr().String())
+			logger.S().Debugf("sending data to the client [%s]", conn.RemoteAddr().String())
 			err := conn.AsyncWrite([]byte(fmt.Sprintf("%s\n", result)))
 			if err != nil {
-				logger.L().Error(err)
+				logger.S().Error(err)
 			}
 
 			if opts.Mode[0] == command.PersistMode {
 				if opts.Op == command.FLUSHALL {
-					logger.L().Debugf("received a flushall command")
-					logger.L().Debugf("truncating AOF log")
+					logger.S().Debugf("received a flushall command")
 					err := s.aof.Truncate()
 					if err != nil {
-						logger.L().Error(err)
+						logger.S().Error(err)
 					}
 				} else {
-					logger.L().Debugf("received a persist-enabled command: %s", command.SETEX.String())
+					logger.S().Debugf("received a persist-enabled command: %s", command.SETEX.String())
 					s.aof.Write(opts.Full)
-					logger.L().Debug("enqueued the command into the AOF persistor queue")
+					logger.S().Debug("enqueued the command into the persistor queue")
 				}
 			}
 		}
 
-		logger.L().Debugf("task done [%s]", conn.RemoteAddr().String())
+		logger.S().Debugf("task done [%s]", conn.RemoteAddr().String())
 	})
 	if err != nil {
-		logger.L().Error(err)
+		logger.S().Error(err)
 	}
 
 	return
 }
 
 func (s *Server) OnShutdown(svr gnet.Server) {
-	logger.L().Info("Shutting down server...")
+	logger.S().Info("Shutting down server...")
 
 	s.connectedClients.Range(func(key, value interface{}) bool {
 		c := value.(gnet.Conn)
@@ -190,16 +189,16 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 
 	err := s.aof.Flush()
 	if err != nil {
-		logger.L().Error(err)
+		logger.S().Error(err)
 	}
 
 	s.aof.Close()
 
-	logger.L().Info("Goodbye")
+	logger.S().Info("Goodbye")
 }
 
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
-	logger.L().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
+	logger.S().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
 	s.stats.ConnectedCount++
 	s.stats.TotalConnectionsCount++
 
@@ -208,7 +207,7 @@ func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
 }
 
 func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
-	logger.L().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
+	logger.S().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
 	s.stats.ConnectedCount--
 	s.connectedClients.Delete(conn.RemoteAddr().String())
 	return
@@ -220,9 +219,9 @@ func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 }
 
 func (s *Server) startupMessage() {
-	logger.L().Info("kvstore is starting...")
-	logger.L().Infof("version=%s build=%s pid=%d", s.stats.Version, s.stats.Build, os.Getpid())
-	logger.L().Info("starting gnet event server...")
+	logger.S().Info("kvstore is starting...")
+	logger.S().Infof("version=%s build=%s pid=%d", s.stats.Version, s.stats.Build, os.Getpid())
+	logger.S().Info("starting gnet event server...")
 }
 
 func (s *Server) printLogo(srv gnet.Server) {
@@ -253,6 +252,6 @@ func (s *Server) printLogo(srv gnet.Server) {
 	logo += yellow("                   \"─.|,^\n\n")
 
 	fmt.Printf(logo, s.stats.Version, s.stats.TCPPort, os.Getpid())
-	logger.L().Infof("Started kvstore server")
-	logger.L().Info("Ready to accept connections.")
+	logger.S().Infof("Started kvstore server")
+	logger.S().Info("Ready to accept connections.")
 }

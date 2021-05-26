@@ -26,6 +26,7 @@ var Defaults = map[string]interface{}{
 	"server.read_buffer_cap":         0x2000000, // 32mb
 	"server.tcp_keep_alive":          true,
 	"server.tcp_keep_alive_duration": 10 * time.Minute,
+	"log.path":                       "/var/log/kvstore/kvstore-server.log",
 	"aof.enabled":                    true,
 	"aof.path":                       "./kvstore-aof.log",
 	"aof.persist_after":              time.Minute,
@@ -70,11 +71,11 @@ func Load(path ...string) error {
 
 	viper.AutomaticEnv()
 
-	logger.L().Debug("loading config file...")
+	logger.S().Debug("loading config file...")
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			logger.L().Debug("config file not found")
-			logger.L().Debug("using default configs")
+			logger.S().Debug("config file not found")
+			logger.S().Debug("using default configs")
 			setDefaults()
 
 			return nil
@@ -83,8 +84,8 @@ func Load(path ...string) error {
 		return err
 	}
 
-	logger.L().Debugf("config file found: %s", pathToFile)
-	logger.L().Debug("setting default values for unconfigured config keys")
+	logger.S().Debugf("config file found: %s", pathToFile)
+	logger.S().Debug("setting default values for unconfigured config keys")
 	setDefaults()
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

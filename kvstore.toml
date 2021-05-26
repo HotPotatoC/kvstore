@@ -14,11 +14,14 @@ multicore = false
 reuse_port = false
 
 # Sets the cap for reading bytes
-read_buffer_cap = 33554432  # Default is 32mb
+read_buffer_cap = 33554432 # Default is 32mb
 
 # SO_KEEPALIVE socket option
 tcp_keep_alive = true
 tcp_keep_alive_duration = 600 # seconds
+
+[log]
+path = "/var/log/kvstore/kvstore-server.log"
 
 # Append-Only File configurations
 [aof]

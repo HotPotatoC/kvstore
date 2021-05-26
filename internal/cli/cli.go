@@ -29,7 +29,7 @@ type CLI struct {
 func New(addr string) *CLI {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		logger.L().Fatal(err)
+		logger.S().Fatal(err)
 	}
 
 	connWithCodec := framecodec.NewLengthFieldBasedFrameCodecConn(
@@ -54,7 +54,7 @@ func (c *CLI) Start() {
 	for {
 		input, err := c.terminal.Prompt(fmt.Sprintf("%s> ", c.conn.Conn().RemoteAddr().String()))
 		if err != nil && !errors.Is(err, io.EOF) {
-			logger.L().Fatal(err)
+			logger.S().Fatal(err)
 		}
 
 		if input == "" {
@@ -107,12 +107,12 @@ func (c *CLI) Start() {
 
 			err = c.conn.WriteFrame([]byte(opts.Full))
 			if err != nil && err != io.EOF {
-				logger.L().Fatal(err)
+				logger.S().Fatal(err)
 			}
 
 			msg, err := c.conn.ReadFrame()
 			if err != nil && err != io.EOF {
-				logger.L().Fatal(err)
+				logger.S().Fatal(err)
 			}
 
 			fmt.Print(string(msg))
@@ -133,17 +133,17 @@ func (c *CLI) getServerInformation() *stats.Stats {
 
 	err := c.conn.WriteFrame(command.INFO.Bytes())
 	if err != nil && err != io.EOF {
-		logger.L().Fatal(err)
+		logger.S().Fatal(err)
 	}
 
 	infoMessage, err := c.conn.ReadFrame()
 	if err != nil && err != io.EOF {
-		logger.L().Fatal(err)
+		logger.S().Fatal(err)
 	}
 
 	err = json.Unmarshal(infoMessage, &serverStats)
 	if err != nil {
-		logger.L().Fatal(err)
+		logger.S().Fatal(err)
 	}
 
 	return &serverStats

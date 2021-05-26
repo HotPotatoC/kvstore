@@ -31,37 +31,38 @@ func init() {
 
 func main() {
 	flag.Parse()
-	logger.Init(*debug)
 
 	if err := config.Load(*cfg); err != nil {
-		logger.L().Fatalf("failed loading config file: %v", err)
+		logger.S().Fatalf("failed loading config file: %v", err)
 	}
+
+	logger.Init(*debug)
 
 	server := server.New(version.Version, version.Build)
 
 	if *debug {
-		logger.L().Debug("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
+		logger.S().Debug("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
 		go func() {
-			logger.L().Debugf("Pprof started -> http://%s:%d/debug/pprof",
+			logger.S().Debugf("Pprof started -> http://%s:%d/debug/pprof",
 				viper.GetString("server.host"),
 				viper.GetInt("server.port")+1)
 
 			if err := http.ListenAndServe(
 				fmt.Sprintf("%s:%d", viper.GetString("server.host"), viper.GetInt("server.port")+1), nil); err != nil {
-				logger.L().Fatalf("pprof failed: %v", err)
+				logger.S().Fatalf("pprof failed: %v", err)
 			}
 		}()
 	}
 
 	go func() {
 		if err := server.Start(); err != nil {
-			logger.L().Fatal(err)
+			logger.S().Fatal(err)
 		}
 	}()
 
 	recv := <-util.WaitForSignals(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.L().Debugf("received interrupt signal: %s", recv)
+	logger.S().Debugf("received interrupt signal: %s", recv)
 
 	gnet.Stop(context.Background(), fmt.Sprintf("%s://%s:%d",
 		viper.GetString("server.protocol"),
