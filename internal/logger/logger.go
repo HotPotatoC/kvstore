@@ -10,14 +10,6 @@ import (
 
 // Init initializes the global logger
 func Init(debug bool) {
-	atom := zap.NewAtomicLevel()
-
-	if debug {
-		atom.SetLevel(zap.DebugLevel)
-	} else {
-		atom.SetLevel(zap.InfoLevel)
-	}
-
 	var consoleEncoder, jsonEncoder zapcore.EncoderConfig
 
 	if debug {
@@ -37,18 +29,18 @@ func Init(debug bool) {
 		zapcore.NewCore(
 			zapcore.NewConsoleEncoder(consoleEncoder),
 			zapcore.AddSync(colorable.NewColorableStdout()),
-			atom,
+			zapcore.Level(int8(viper.GetInt("log.level"))),
 		),
 		zapcore.NewCore(
 			zapcore.NewJSONEncoder(jsonEncoder),
 			zapcore.AddSync(&lumberjack.Logger{
 				Filename:   viper.GetString("log.path"),
-				MaxSize:    10,
-				MaxBackups: 6,
-				MaxAge:     28,
-				Compress:   true,
+				MaxSize:    viper.GetInt("log.max_size"),
+				MaxBackups: viper.GetInt("log.max_backups"),
+				MaxAge:     viper.GetInt("log.max_age"),
+				Compress:   viper.GetBool("log.compress"),
 			}),
-			zap.DebugLevel,
+			zapcore.Level(int8(viper.GetInt("log.level"))),
 		),
 	)
 

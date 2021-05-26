@@ -26,10 +26,17 @@ var Defaults = map[string]interface{}{
 	"server.read_buffer_cap":         0x2000000, // 32mb
 	"server.tcp_keep_alive":          true,
 	"server.tcp_keep_alive_duration": 10 * time.Minute,
-	"log.path":                       "/var/log/kvstore/kvstore-server.log",
-	"aof.enabled":                    true,
-	"aof.path":                       "./kvstore-aof.log",
-	"aof.persist_after":              time.Minute,
+
+	"log.path":        "/var/log/kvstore/kvstore-server.log",
+	"log.level":       -1,
+	"log.max_size":    10,
+	"log.max_backups": 6,
+	"log.max_age":     28,
+	"log.compress":    true,
+
+	"aof.enabled":       true,
+	"aof.path":          "./kvstore-aof.log",
+	"aof.persist_after": time.Minute,
 }
 
 func setDefaults() {
