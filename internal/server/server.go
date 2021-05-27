@@ -49,8 +49,6 @@ func (s *Server) Start() error {
 
 	s.stats.Init()
 
-	s.startupMessage()
-
 	codec := framecodec.NewLengthFieldBasedFrameCodec(
 		framecodec.NewGNETDefaultLengthFieldBasedFrameEncoderConfig(),
 		framecodec.NewGNETDefaultLengthFieldBasedFrameDecoderConfig())
@@ -81,8 +79,8 @@ func (s *Server) Start() error {
 
 		s.aof = aof
 
-		logger.S().Debug("initializing AOF persistor service...")
-		logger.S().Debug("reading AOF log...")
+		logger.S().Info("initializing AOF persistor service...")
+		logger.S().Info("reading AOF log...")
 
 		for cmdStr := range s.aof.Read() {
 			opts, err := command.Parse(cmdStr)
@@ -96,12 +94,14 @@ func (s *Server) Start() error {
 
 		go s.aof.Run(viper.GetDuration("aof.persist_after") * time.Second)
 	} else {
+		logger.S().Info("AOF Persistor service disabled")
 		// Use a mock version of AOF Persistor
 		aof, _ := storage.NewMockAOFPersistor()
 
 		s.aof = aof
 	}
 
+	s.startupMessage()
 	err := gnet.Serve(s, addr, opts...)
 	if err != nil {
 		return err
@@ -116,6 +116,8 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 	logger.S().Debugf("received data: %s [%s]", data, conn.RemoteAddr().String())
 	logger.S().Debugf("submitting a task to the worker pool for the given data [%s]", conn.RemoteAddr().String())
 	err := s.pool.Submit(func() {
+		defer logger.S().Debugf("task done [%s]", conn.RemoteAddr().String())
+
 		raw := strings.Fields(string(data))
 		if len(raw) < 1 {
 			logger.S().Debugf("client provided a missing command [%s]", conn.RemoteAddr().String())
@@ -167,8 +169,6 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 				}
 			}
 		}
-
-		logger.S().Debugf("task done [%s]", conn.RemoteAddr().String())
 	})
 	if err != nil {
 		logger.S().Error(err)
@@ -178,7 +178,7 @@ func (s *Server) React(frame []byte, conn gnet.Conn) (out []byte, action gnet.Ac
 }
 
 func (s *Server) OnShutdown(svr gnet.Server) {
-	logger.S().Info("Shutting down server...")
+	logger.S().Info("shutting down server...")
 
 	s.connectedClients.Range(func(key, value interface{}) bool {
 		c := value.(gnet.Conn)
@@ -193,8 +193,6 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 	}
 
 	s.aof.Close()
-
-	logger.S().Info("Goodbye")
 }
 
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
@@ -221,12 +219,12 @@ func (s *Server) OnInitComplete(srv gnet.Server) (action gnet.Action) {
 func (s *Server) startupMessage() {
 	logger.S().Info("kvstore is starting...")
 	logger.S().Infof("version=%s build=%s pid=%d", s.stats.Version, s.stats.Build, os.Getpid())
-	logger.S().Info("starting gnet event server...")
 }
 
 func (s *Server) printLogo(srv gnet.Server) {
 	yellow := color.New(color.FgYellow).SprintFunc()
 	white := color.New(color.FgWhite, color.Bold).SprintFunc()
+
 	var logo string
 	logo += "\n"
 	logo += yellow("       .\n")
@@ -252,6 +250,8 @@ func (s *Server) printLogo(srv gnet.Server) {
 	logo += yellow("                   \"─.|,^\n\n")
 
 	fmt.Printf(logo, s.stats.Version, s.stats.TCPPort, os.Getpid())
-	logger.S().Infof("Started kvstore server")
-	logger.S().Info("Ready to accept connections.")
+
+	logger.S().Infof("listening on %s", srv.Addr)
+	logger.S().Infof("started kvstore server")
+	logger.S().Info("ready to accept connections.")
 }
