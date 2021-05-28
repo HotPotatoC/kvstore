@@ -18,14 +18,13 @@ const (
 // Defaults is the default configuration values and
 // is used when a configuration file was not found
 var Defaults = map[string]interface{}{
-	"server.host":                    "0.0.0.0",
-	"server.port":                    7275,
-	"server.protocol":                "tcp",
-	"server.multicore":               false,
-	"server.reuse_port":              false,
-	"server.read_buffer_cap":         0x2000000, // 32mb
-	"server.tcp_keep_alive":          true,
-	"server.tcp_keep_alive_duration": 10 * time.Minute,
+	"server.host":            "0.0.0.0",
+	"server.port":            7275,
+	"server.protocol":        "tcp",
+	"server.multicore":       false,
+	"server.reuse_port":      false,
+	"server.read_buffer_cap": 0x2000000, // 32mb
+	"server.tcp_keep_alive":  10 * time.Minute,
 
 	"log.path":        "/var/log/kvstore/kvstore-server.log",
 	"log.level":       -1,

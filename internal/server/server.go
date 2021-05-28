@@ -66,9 +66,9 @@ func (s *Server) Start() error {
 		gnet.WithCodec(codec),
 	}
 
-	if viper.GetBool("server.tcp_keep_alive") {
+	if viper.GetInt("server.tcp_keep_alive") > 0 {
 		opts = append(opts, gnet.WithTCPKeepAlive(
-			viper.GetDuration("server.tcp_keep_alive_duration")*time.Second))
+			viper.GetDuration("server.tcp_keep_alive")*time.Second))
 	}
 
 	if viper.GetBool("aof.enabled") {

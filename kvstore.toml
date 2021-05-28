@@ -17,8 +17,7 @@ reuse_port = false
 read_buffer_cap = 33554432 # Default is 32mb
 
 # SO_KEEPALIVE socket option
-tcp_keep_alive = true
-tcp_keep_alive_duration = 600 # seconds
+tcp_keep_alive = 600 # seconds [Set to 0 to disable]
 
 # Logging configurations
 [log]
