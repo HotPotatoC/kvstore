@@ -29,6 +29,8 @@ builds:
         goarch: 386
       - goos: openbsd
         goarch: arm6
+      - goos: freebsd
+        goarch: arm6
 
   - main: ./cmd/kvstore-cli/main.go
     id: "kvstore-cli"
