@@ -14,5 +14,5 @@ require (
 	github.com/spf13/viper v1.7.1
 	go.uber.org/zap v1.16.0
 	golang.org/x/sys v0.0.0-20210415045647-66c3f260301c // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
