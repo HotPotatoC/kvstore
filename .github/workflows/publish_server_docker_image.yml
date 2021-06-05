@@ -1,8 +1,5 @@
 name: Publish kvstore server image
 on:
-  pull_request:
-    branches:
-      - "master"
   push:
     branches:
       - "master"

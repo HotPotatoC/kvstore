@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/HotPotatoC/kvstore/internal/database"
+	"github.com/HotPotatoC/kvstore/internal/storage"
 )
 
 type setEXCommand struct {
-	db database.Store
+	db storage.Store
 }
 
-func makeSetEXCommand(db database.Store) Command {
+func makeSetEXCommand(db storage.Store) Command {
 	return setEXCommand{
 		db: db,
 	}

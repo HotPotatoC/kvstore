@@ -1,14 +1,12 @@
-![kvstore](.github/kvstore.png)
-
 # **kvstore**
 
-**kvstore** is an in-memory database server with the key-value model.
+an experimental in-memory database server with the key-value data model.
 
 ![kvstore in action](.github/kvstore.gif)
 
-# Please Note
+# NOTE
 
-This project is not **yet** targeted for production use. The purpose of this project at the moment is mostly just for fun and learning.
+This project is not **yet** targeted for production use. This project is currently marked as experimental and for educational purposes only.
 
 Want to expand this project? open up an [issue](https://github.com/HotPotatoC/kvstore/issues/new) or you can contact me on juandotulung@gmail.com
 
@@ -110,10 +108,10 @@ To interact with the server, on another terminal run the `kvstore-cli` command
 | SETEX [key] [value] [seconds] | Insert a new expirable entry into the database                                                  |
 | GET [key]                     | Return the data in the database with the matching key                                           |
 | DEL [key]                     | Remove an entry in the database with the matching key                                           |
-| LIST                          | Display all the saved data in the database with the format `[key] -> [value]`                   |
 | KEYS                          | Display all the saved keys in the database                                                      |
-| FLUSH                         | Delete all keys                                                                                 |
+| FLUSHALL                      | Delete all keys                                                                                 |
 | INFO                          | Display the current stats of the server (OS, mem usage, total connections, etc.) in json format |
+| PING                          | Pings the server                                                                                |
 
 # Contributing
 

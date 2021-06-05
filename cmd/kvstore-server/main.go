@@ -1,43 +1,71 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"os"
+	"syscall"
 
+	"github.com/HotPotatoC/kvstore/internal/config"
+	"github.com/HotPotatoC/kvstore/internal/logger"
 	"github.com/HotPotatoC/kvstore/internal/server"
+	"github.com/HotPotatoC/kvstore/internal/util"
 	"github.com/HotPotatoC/kvstore/internal/version"
-	"github.com/HotPotatoC/kvstore/pkg/logger"
+	"github.com/panjf2000/gnet"
+	"github.com/spf13/viper"
 
 	"net/http"
 	_ "net/http/pprof"
 )
 
 var (
-	host  = flag.String("host", "0.0.0.0", "KVStore server host")
-	port  = flag.Int("port", 7275, "KVStore server port")
 	debug = flag.Bool("debug", false, "Debug mode")
+	cfg   = flag.String("cfg", "", "kvstore yaml configuration path")
 )
 
 func init() {
-	flag.StringVar(host, "h", "0.0.0.0", "KVStore server host")
-	flag.IntVar(port, "p", 7275, "KVStore server port")
 	flag.BoolVar(debug, "d", false, "Debug mode")
+	flag.StringVar(cfg, "c", "", "kvstore yaml configuration path")
 }
 
 func main() {
 	flag.Parse()
-	log := logger.New()
+
+	if err := config.Load(*cfg); err != nil {
+		logger.S().Fatalf("failed loading config file: %v", err)
+	}
+
+	logger.Init(*debug)
+
 	server := server.New(version.Version, version.Build)
 
 	if *debug {
-		log.Info("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
+		logger.S().Debug("-=-=-=-=-=-= Running in debug mode =-=-=-=-=-=-")
 		go func() {
-			log.Infof("Pprof started -> http://%s:%d/debug/pprof", *host, *port+1)
-			if err := http.ListenAndServe(fmt.Sprintf("%s:%d", *host, *port+1), nil); err != nil {
-				log.Fatalf("pprof failed: %v", err)
+			logger.S().Debugf("Pprof started -> http://%s:%d/debug/pprof",
+				viper.GetString("server.host"),
+				viper.GetInt("server.port")+1)
+
+			if err := http.ListenAndServe(
+				fmt.Sprintf("%s:%d", viper.GetString("server.host"), viper.GetInt("server.port")+1), nil); err != nil {
+				logger.S().Fatalf("pprof failed: %v", err)
 			}
 		}()
 	}
 
-	server.Start(*host, *port)
+	go func() {
+		if err := server.Start(); err != nil {
+			logger.S().Fatal(err)
+		}
+	}()
+
+	recv := <-util.WaitForSignals(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	logger.S().Debugf("received interrupt signal: %s", recv)
+
+	gnet.Stop(context.Background(), fmt.Sprintf("%s://%s:%d",
+		viper.GetString("server.protocol"),
+		viper.GetString("server.host"),
+		viper.GetInt("server.port")))
 }

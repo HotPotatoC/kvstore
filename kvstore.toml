@@ -1,0 +1,55 @@
+# This is an example of a kvstore server configuration file
+
+# Database Server configurations
+[server]
+host = "0.0.0.0"
+port = 7275
+protocol = "tcp"
+
+# Sets up multicore for the server
+multicore = false
+
+# Enable this to start multiple kvstore instances
+# listening to the same port
+reuse_port = false
+
+# Sets the cap for reading bytes
+read_buffer_cap = 33554432 # Default is 32mb
+
+# SO_KEEPALIVE socket option
+tcp_keep_alive = 600 # seconds [Set to 0 to disable]
+
+# Logging configurations
+[log]
+# Log levels:
+# - Debug   -> -1
+# - Info    -> 0
+# - Warn    -> 1
+# - Error   -> 2
+level = 0
+
+# Path to save the log file
+path = "/var/log/kvstore/kvstore-server.log"
+
+# The maximum size of a log file in Megabytes before it gets rotated
+max_size = 10
+
+# The maximum amount of old log files to retain
+max_backups = 6
+
+# The maximum number of days to retain old log files based on the timestamp encoded in their filename
+max_age = 28
+
+# Determines if the rotated log files should be compressed using gzip
+compress = true
+
+# Append-Only File configurations
+[aof]
+enabled = true
+
+# AOF Log file path [default: Current working directory]
+path = "./kvstore-aof.log"
+
+# Used for flushing buffered commands into the log file after the amount
+# of configured seconds have passed
+persist_after = 60 # seconds

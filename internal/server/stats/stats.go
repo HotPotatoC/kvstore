@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/HotPotatoC/kvstore/pkg/utils"
+	"github.com/HotPotatoC/kvstore/internal/util"
 )
 
 var startTime time.Time
@@ -57,7 +57,7 @@ func (s *Stats) Init() {
 // UpdateUptime updates the Uptime and UptimeHuman fields to the current time
 func (s *Stats) UpdateUptime() {
 	s.Uptime = time.Since(startTime)
-	s.UptimeHuman = utils.FormatDuration(time.Since(startTime))
+	s.UptimeHuman = util.FormatDuration(time.Since(startTime))
 }
 
 // UpdateMemStats updates the MemoryUsage, MemoryUsageHuman and MemoryTotalAlloc fields with the
@@ -67,7 +67,7 @@ func (s *Stats) UpdateMemStats() {
 	runtime.ReadMemStats(&m)
 
 	s.MemoryUsage = m.Alloc
-	s.MemoryUsageHuman = utils.ByteCount(m.Alloc)
+	s.MemoryUsageHuman = util.ByteCount(m.Alloc)
 	s.MemoryTotalAlloc = m.TotalAlloc
 }
 

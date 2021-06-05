@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"github.com/HotPotatoC/kvstore/internal/cli"
+	"github.com/HotPotatoC/kvstore/internal/logger"
 )
 
 var (
@@ -16,6 +17,8 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	logger.Init(false)
 
 	cli := cli.New(*addr)
 
