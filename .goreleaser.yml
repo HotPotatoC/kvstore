@@ -28,9 +28,9 @@ builds:
       - goos: darwin
         goarch: 386
       - goos: openbsd
-        goarch: arm6
+        goarch: arm
       - goos: freebsd
-        goarch: arm6
+        goarch: arm
 
   - main: ./cmd/kvstore-cli/main.go
     id: "kvstore-cli"
