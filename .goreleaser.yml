@@ -8,7 +8,7 @@ builds:
     id: "kvstore-server"
     binary: kvstore-server
     ldflags:
-      - -s -w -X main.Version={{.Version}} -X main.Build={{.Commit}}
+      - -X main.Version={{.Version}} -X main.Build={{.Commit}}
     env:
       - CGO_ENABLED=0
     goos:
