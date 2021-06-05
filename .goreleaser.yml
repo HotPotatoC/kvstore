@@ -29,6 +29,8 @@ builds:
         goarch: 386
       - goos: netbsd
         goarch: 386
+      - goos: netbsd
+        goarch: amd64
       - goos: openbsd
         goarch: arm
       - goos: freebsd
