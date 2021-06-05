@@ -33,14 +33,16 @@ builds:
         goarch: 386
       - goos: netbsd
         goarch: 386
-      - goos: netbsd
-        goarch: amd64
       - goos: freebsd
         goarch: arm
       - goos: openbsd
         goarch: arm
       - goos: netbsd
         goarch: arm
+      - goos: openbsd
+        goarch: arm64
+      - goos: netbsd
+        goarch: amd64
 
   - main: ./cmd/kvstore-cli/main.go
     id: "kvstore-cli"
