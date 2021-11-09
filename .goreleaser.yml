@@ -1,0 +1,57 @@
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod download
+builds:
+  - main: ./cmd/kvstore-server/main.go
+    id: "kvstore-server"
+    binary: kvstore-server
+    ldflags:
+      - -X build.Version={{.Version}} -X build.Build={{.Commit}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+      - freebsd
+      - dragonfly
+    goarch:
+      - 386
+      - arm
+      - arm64
+      - amd64
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: freebsd
+        goarch: 386
+      - goos: freebsd
+        goarch: arm
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}-{{ .Arch }}"
+    replacements:
+      amd64: 64bit
+      386: 32bit
+      arm: ARM
+      arm64: ARM64
+      darwin: macOS
+      linux: Linux
+      windows: Windows
+      openbsd: OpenBSD
+      netbsd: NetBSD
+      freebsd: FreeBSD
+      dragonfly: DragonFlyBSD
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
