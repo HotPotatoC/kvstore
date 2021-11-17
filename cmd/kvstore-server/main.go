@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,9 +9,6 @@ import (
 	"github.com/HotPotatoC/kvstore-rewrite/config"
 	"github.com/HotPotatoC/kvstore-rewrite/logger"
 	"github.com/HotPotatoC/kvstore-rewrite/server"
-	"github.com/panjf2000/gnet"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 var (
@@ -50,11 +45,7 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	logger.S().Info("Shutting down kvstore server")
+	logger.S().Warn("Shutting down kvstore server")
 
-	for _, addr := range viper.GetStringSlice("server.addrs") {
-		if err := gnet.Stop(context.Background(), fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port"))); err != nil {
-			logger.S().Error("failed to stop server", zap.String("addr", addr), err)
-		}
-	}
+	srv.Stop()
 }

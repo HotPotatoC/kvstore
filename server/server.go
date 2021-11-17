@@ -2,10 +2,13 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"sync"
+	"unsafe"
 
+	"github.com/HotPotatoC/kvstore-rewrite/build"
 	"github.com/HotPotatoC/kvstore-rewrite/client"
 	"github.com/HotPotatoC/kvstore-rewrite/command"
 	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
@@ -15,6 +18,7 @@ import (
 	"github.com/panjf2000/gnet"
 	"github.com/panjf2000/gnet/pool/goroutine"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 // Server is the main server struct.
@@ -124,6 +128,23 @@ func (s *Server) Run() error {
 	return nil
 }
 
+// Stop stops the server.
+func (s *Server) Stop() {
+	s.clients.Range(func(key, value interface{}) bool {
+		conn := value.(gnet.Conn)
+		conn.Close()
+		return true
+	})
+
+	s.pool.Release()
+
+	for _, addr := range viper.GetStringSlice("server.addrs") {
+		if err := gnet.Stop(context.Background(), fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port"))); err != nil {
+			logger.S().Error("failed to stop server", zap.String("addr", addr), err)
+		}
+	}
+}
+
 // React (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.React)
 func (s *Server) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
 	data := append([]byte{}, frame...)
@@ -135,6 +156,17 @@ func (s *Server) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Actio
 	if err != nil {
 		logger.S().Error(err)
 	}
+	return
+}
+
+// OnInitComplete (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnInitComplete)
+func (s *Server) OnInitComplete(svr gnet.Server) (action gnet.Action) {
+	fmt.Println()
+	fmt.Printf("kvstore %s (%d-Bit)\n", build.Version, 8*int(unsafe.Sizeof(int(0))))
+	fmt.Printf("Port: %d\n", viper.GetInt("server.port"))
+	fmt.Printf("PID: %d\n", s.PID)
+	fmt.Println()
+	logger.S().Info("🚀 Ready to accept connections")
 	return
 }
 
@@ -157,13 +189,14 @@ func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
 // OnShutdown (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnShutdown)
 func (s *Server) OnShutdown(svr gnet.Server) {
 	if err := s.kvsDB.Write(s.DB); err != nil {
-		logger.S().Error("failed saving db: ", err)
+		logger.S().Warn("failed saving db: ", err)
 	}
 
 	if err := s.kvsDB.Close(); err != nil {
-		logger.S().Error("failed closing db: ", err)
+		logger.S().Warn("failed closing db: ", err)
 	}
 
+	logger.S().Info("DB saved on disk")
 	logger.S().Info("server has been shut down")
 }
 
