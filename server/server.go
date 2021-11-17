@@ -37,8 +37,6 @@ type Server struct {
 	// connections.
 	pool *goroutine.Pool
 
-	reader *protocol.Reader
-
 	// Stats is the statistics of the server.
 	Stats
 
@@ -132,7 +130,6 @@ func (s *Server) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Actio
 	c.ResetBuffer()
 
 	err := s.pool.Submit(func() {
-		s.reader = protocol.NewReader(bytes.NewReader(data))
 		s.handle(data, c)
 	})
 	if err != nil {
@@ -185,7 +182,8 @@ func (s *Server) bindToAddress(addr string) {
 
 // handle handles client requests.
 func (s *Server) handle(data []byte, c gnet.Conn) {
-	v, err := s.reader.ReadObject()
+	reader := protocol.NewReader(bytes.NewReader(data))
+	v, err := reader.ReadObject()
 	if err != nil {
 		logger.S().Error(err)
 		return

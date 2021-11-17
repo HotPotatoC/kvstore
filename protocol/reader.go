@@ -47,26 +47,22 @@ func (r *Reader) ReadObject() (interface{}, error) {
 	case Integer:
 		return r.parseInt(line[1:])
 	case BulkString:
-		len, err := r.parseLen(line[1:])
+		n, err := r.parseLen(line[1:])
+		if n < 0 || err != nil {
+			return nil, err
+		}
+		p := make([]byte, n)
+		_, err = io.ReadFull(r.br, p)
 		if err != nil {
 			return nil, err
 		}
-
-		if len == -1 {
-			return nil, nil
-		}
-
-		p, err := r.br.Peek(len + 2)
-		if err != nil {
+		if line, err := r.readLine(); err != nil {
 			return nil, err
-		}
-
-		if p[len] != '\r' || p[len+1] != '\n' {
+		} else if len(line) != 0 {
 			return nil, ErrInvalidSyntax
 		}
 
-		r.br.Discard(len + 2)
-		return p[:len], nil
+		return p, nil
 	case Array:
 		len, err := r.parseLen(line[1:])
 		if err != nil {
