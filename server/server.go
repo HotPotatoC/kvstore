@@ -133,6 +133,7 @@ func (s *Server) Stop() {
 	s.clients.Range(func(key, value interface{}) bool {
 		conn := value.(gnet.Conn)
 		conn.Close()
+		s.clients.Delete(key)
 		return true
 	})
 
