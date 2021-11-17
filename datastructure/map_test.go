@@ -8,7 +8,7 @@ import (
 
 func Test_SetGet(t *testing.T) {
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), datastructure.TypeString, 0))
+	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
 
 	if v, ok := hmap.Get("key"); !ok {
 		t.Errorf("Get failed")
