@@ -47,8 +47,9 @@ func OpenKVSDB(path ...string) (*KVSDB, error) {
 
 // Write writes the given data to the kvsDB.
 func (db *KVSDB) Write(data *datastructure.Map) error {
+	encoder := msgpack.NewEncoder(db.file)
 	for _, item := range data.List() {
-		if err := msgpack.NewEncoder(db.file).Encode(item); err != nil {
+		if err := encoder.Encode(item); err != nil {
 			return err
 		}
 	}
