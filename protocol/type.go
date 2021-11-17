@@ -60,6 +60,19 @@ func MakeInteger(i int64) []byte {
 	return b
 }
 
+// MakeBool creates a bool protocol object. (basically an integer with value 1 or 0)
+func MakeBool(b bool) []byte {
+	var bb []byte
+	bb = append(bb, Integer)
+	if b {
+		bb = strconv.AppendInt(bb, 1, 10)
+	} else {
+		bb = strconv.AppendInt(bb, 0, 10)
+	}
+	bb = append(bb, CRLF...)
+	return bb
+}
+
 // MakeBulkString creates a bulk string protocol object.
 func MakeBulkString(s string) []byte {
 	var b []byte

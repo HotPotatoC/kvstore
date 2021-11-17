@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/HotPotatoC/kvstore-rewrite/build"
@@ -33,6 +35,8 @@ type Server struct {
 	BindAddresses []string
 	// DB is the data structure that the server uses to store key-value pairs.
 	DB *datastructure.Map
+	// Stats is the statistics of the server.
+	Stats
 	// kvsDB is the file used to persist the data structure.
 	kvsDB *disk.KVSDB
 	// clients is a map of all the clients connected to the server.
@@ -40,13 +44,15 @@ type Server struct {
 	// pool is the pool of goroutines that the server uses to handle incoming
 	// connections.
 	pool *goroutine.Pool
-
-	// Stats is the statistics of the server.
-	Stats
+	// nextClientID is the next monotonically increasing client ID.
+	nextClientID int64
 
 	*gnet.EventServer
 	wg sync.WaitGroup
 }
+
+// server is the global server variable.
+var server *Server
 
 // CommandTable is the table of commands that the server supports.
 var CommandTable = map[string]command.Command{
@@ -95,6 +101,49 @@ var CommandTable = map[string]command.Command{
 		Description: "Gets all commands",
 		Type:        command.Read,
 		Proc:        commandCommand},
+	"client": {
+		Name:        "client",
+		SubCommands: clientSubCommands,
+	},
+}
+
+var clientSubCommands = map[string]command.Command{
+	"id": {
+		Name:        "id",
+		Description: "Returns the id of the current connection",
+		Type:        command.Read,
+		Proc:        clientCommand,
+	},
+	"info": {
+		Name:        "info",
+		Description: "Returns the info of the current connection",
+		Type:        command.Read,
+		Proc:        clientCommand,
+	},
+	"list": {
+		Name:        "list",
+		Description: "Lists all connected clients",
+		Type:        command.Read,
+		Proc:        clientCommand,
+	},
+	"kill": {
+		Name:        "kill",
+		Description: "Closes a given connection",
+		Type:        command.Write,
+		Proc:        clientCommand,
+	},
+	"setname": {
+		Name:        "setname",
+		Description: "Sets the name of the current connection",
+		Type:        command.Write,
+		Proc:        clientCommand,
+	},
+	"getname": {
+		Name:        "getname",
+		Description: "Gets the name of the current connection",
+		Type:        command.Read,
+		Proc:        clientCommand,
+	},
 }
 
 // New creates a new server.
@@ -109,12 +158,14 @@ func New() (*Server, error) {
 		return nil, err
 	}
 
-	return &Server{
+	server = &Server{
 		PID:   os.Getpid(),
 		DB:    db,
 		kvsDB: kvsDB,
 		pool:  goroutine.Default(),
-	}, nil
+	}
+
+	return server, nil
 }
 
 // Run starts the server.
@@ -131,8 +182,8 @@ func (s *Server) Run() error {
 // Stop stops the server.
 func (s *Server) Stop() {
 	s.clients.Range(func(key, value interface{}) bool {
-		conn := value.(gnet.Conn)
-		conn.Close()
+		c := value.(*client.Client)
+		c.Conn.Close()
 		s.clients.Delete(key)
 		return true
 	})
@@ -175,7 +226,15 @@ func (s *Server) OnInitComplete(svr gnet.Server) (action gnet.Action) {
 func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
 	logger.S().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
 
-	s.clients.Store(conn.RemoteAddr().String(), conn)
+	s.clients.Store(conn.RemoteAddr().String(), &client.Client{
+		ID:         atomic.AddInt64(&s.nextClientID, 1),
+		Flags:      client.FlagNone,
+		Conn:       conn,
+		DB:         s.DB,
+		KVSDB:      s.kvsDB,
+		CreateTime: time.Now(),
+	})
+
 	return
 }
 
@@ -215,15 +274,15 @@ func (s *Server) bindToAddress(addr string) {
 }
 
 // handle handles client requests.
-func (s *Server) handle(data []byte, c gnet.Conn) {
+func (s *Server) handle(data []byte, conn gnet.Conn) {
 	reader := protocol.NewReader(bytes.NewReader(data))
-	v, err := reader.ReadObject()
+	obj, err := reader.ReadObject()
 	if err != nil {
 		logger.S().Error(err)
 		return
 	}
 
-	recv := v.([]interface{})
+	recv := obj.([]interface{})
 	recvCmd, rawRecvArgv := bytes.ToLower(recv[0].([]byte)), recv[1:]
 
 	var recvArgv [][]byte
@@ -233,17 +292,37 @@ func (s *Server) handle(data []byte, c gnet.Conn) {
 
 	cmd, ok := CommandTable[string(recvCmd)]
 	if !ok {
-		c.AsyncWrite(NewGenericError("unknown command '" + string(recvCmd) + "'"))
+		conn.AsyncWrite(NewGenericError("unknown command '" + string(recvCmd) + "'"))
 		return
 	}
 
-	cmd.Proc(&client.Client{
-		Conn:  c,
-		DB:    s.DB,
-		KVSDB: s.kvsDB,
-		Argv:  recvArgv,
-		Argc:  len(recvArgv),
-	})
+	if cmd.SubCommands != nil {
+		if len(recvArgv) == 0 {
+			conn.AsyncWrite(NewGenericError("wrong number of arguments for '" + string(recvCmd) + "' command"))
+			return
+		}
+
+		subCmd, ok := cmd.SubCommands[string(recvArgv[0])]
+		if !ok {
+			conn.AsyncWrite(NewGenericError("unknown subcommand '" + string(recvArgv[0]) + "' for '" + string(recvCmd) + "' command"))
+			return
+		}
+
+		cmd = subCmd
+	}
+
+	v, _ := s.clients.Load(conn.RemoteAddr().String())
+
+	c := v.(*client.Client)
+	c.Argv = recvArgv
+	c.Argc = len(recvArgv)
+	if cmd.Type == command.Write || cmd.Type == command.ReadWrite {
+		c.Flags &= ^client.FlagNone // clear flags
+		c.Flags |= client.FlagBusy // set the client as busy
+	}
+
+	cmd.Proc(c)
+	s.afterCommand(c)
 }
 
 // pingCommand handles ping command.

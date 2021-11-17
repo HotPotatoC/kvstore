@@ -12,6 +12,8 @@ type Command struct {
 	Type Type
 	// Proc is the command processor
 	Proc Proc
+	// SubCommands is the sub-commands
+	SubCommands map[string]Command
 }
 
 // Proc is the command processor
@@ -29,8 +31,3 @@ const (
 	// ReadWrite is the read-write command type
 	ReadWrite Type = Read | Write
 )
-
-// NewCommand creates a new command
-func NewCommand(name, desc string, t Type, proc Proc) *Command {
-	return &Command{Name: name, Description: desc, Type: t, Proc: proc}
-}

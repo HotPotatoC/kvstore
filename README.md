@@ -23,6 +23,9 @@ Current available commands are:
 - `DEL key`
 - `KEYS pattern`
 - `VALUES`
+- `PING`
+- `FLUSHALL`
+- `CLIENT [ID | INFO | LIST | KILL <id | addr | user> <value> | GETNAME | SETNAME <name>]`
 
 ## NOTE
 

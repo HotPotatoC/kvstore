@@ -30,9 +30,33 @@ func BenchmarkWriter_MakeError(b *testing.B) {
 	}
 }
 
-func BenchmarkWriter_MakeInteger(b *testing.B) {
+func BenchmarkWriter_MakeInteger_123(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		protocol.MakeInteger(123)
+	}
+}
+
+func BenchmarkWriter_MakeInteger_123456(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		protocol.MakeInteger(123456)
+	}
+}
+
+func BenchmarkWriter_MakeInteger_123456789(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		protocol.MakeInteger(123456789)
+	}
+}
+
+func BenchmarkWriter_MakeBool_True(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		protocol.MakeBool(true)
+	}
+}
+
+func BenchmarkWriter_MakeBool_False(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		protocol.MakeBool(false)
 	}
 }
 

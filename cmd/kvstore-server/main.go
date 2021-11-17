@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	debug     = flag.Bool("debug", false, "enable debug mode")
-	cfg       = flag.String("config", "", "config file")
+	debug = flag.Bool("debug", false, "enable debug mode")
+	cfg   = flag.String("config", "", "config file")
 )
 
 func init() {

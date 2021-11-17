@@ -105,6 +105,26 @@ func TestWriter_MakeInteger(t *testing.T) {
 	}
 }
 
+func Test_MakeBool(t *testing.T) {
+	tc := []struct {
+		name string
+		args bool
+		exp  []byte
+	}{
+		{name: "true", args: true, exp: []byte(":1\r\n")},
+		{name: "false", args: false, exp: []byte(":0\r\n")},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			res := protocol.MakeBool(tt.args)
+			if !bytes.Equal(res, tt.exp) {
+				t.Errorf("expected %#v, got %#v", string(tt.exp), string(res))
+			}
+		})
+	}
+}
+
 func TestWriter_MakeBulkString(t *testing.T) {
 	tc := []struct {
 		name string
