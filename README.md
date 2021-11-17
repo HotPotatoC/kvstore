@@ -27,6 +27,14 @@ Current available commands are:
 - `FLUSHALL`
 - `CLIENT [ID | INFO | LIST | KILL <id | addr | user> <value> | GETNAME | SETNAME <name>]`
 
+## To Do
+
+- [ ] Pipelining commands
+- [ ] AOF
+- [ ] ACL
+- [ ] Clustering
+- [ ] Implement `kvstore-cli`
+
 ## NOTE
 
 This project is not targeted for production use. This is only a proof of concept
