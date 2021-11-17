@@ -35,15 +35,16 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 			s.clients.Range(func(key, value interface{}) bool {
 				if value.(*client.Client).ID == target {
 					if value.(*client.Client).Flags&client.FlagBusy != 0 {
-						// We can't kill the client immediately, because the client may be in the middle of a transaction. So we just mark the client to be closed, and let afterCommand() handle the closing.
+						// If the client is busy, mark it for close
 						value.(*client.Client).Flags |= client.FlagCloseASAP
 						delNum++
 					} else {
+						// If the client is not busy, kill it immediately
 						value.(*client.Client).Conn.Close()
 						s.clients.Delete(key)
 						delNum++
-						return false
 					}
+					return false
 				}
 				return true
 			})
