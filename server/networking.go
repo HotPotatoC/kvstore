@@ -88,6 +88,7 @@ func (s *Server) afterCommand(c *client.Client) {
 	c.Flags |= client.FlagNone
 
 	if c.Flags&client.FlagCloseASAP != 0 { // If the client is marked for close, close the connection
+		c.Flags &= ^client.FlagCloseASAP
 		s.killClient(c, KillClientByID, c.ID)
 	}
 }
