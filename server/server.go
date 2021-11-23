@@ -275,14 +275,7 @@ func (s *Server) bindToAddress(addr string) {
 
 // handle handles client requests.
 func (s *Server) handle(data []byte, conn gnet.Conn) {
-	reader := protocol.NewReader(bytes.NewReader(data))
-	obj, err := reader.ReadObject()
-	if err != nil {
-		logger.S().Error(err)
-		return
-	}
-
-	recvCmd, recvArgv := command.Parse(obj.([]interface{}))
+	recvCmd, recvArgv := s.parseObject(data)
 
 	cmd, ok := CommandTable[string(recvCmd)]
 	if !ok {
@@ -312,11 +305,39 @@ func (s *Server) handle(data []byte, conn gnet.Conn) {
 	c.Argc = len(recvArgv)
 	if cmd.Type == command.Write || cmd.Type == command.ReadWrite {
 		c.Flags &= ^client.FlagNone // clear flags
-		c.Flags |= client.FlagBusy // set the client as busy
+		c.Flags |= client.FlagBusy  // set the client as busy
 	}
 
 	cmd.Proc(c)
 	s.afterCommand(c)
+}
+
+// parseObject parses the resp3 object from the given data.
+// returns the command and the arguments.
+func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
+	reader := protocol.NewReader(bytes.NewReader(data))
+	// TODO: Once generics are released, we should use it here.
+	obj, err := reader.ReadObject()
+	if err != nil {
+		logger.S().Error(err)
+		return nil, nil
+	}
+
+	recv := obj.([]interface{})
+
+	recvCmd, rawRecvArgv := bytes.ToLower(recv[0].([]byte)), recv[1:]
+
+	var recvArgv [][]byte
+	for _, v := range rawRecvArgv {
+		recvArgv = append(recvArgv, v.([]byte))
+	}
+
+	// Wrap args if it starts with a quote
+	// if len(recvArgv) > 0 && recvArgv[0][0] == '"' {
+	// 	recvArgv = command.WrapArgsFromQuotes(recvArgv)
+	// }
+
+	return recvCmd, recvArgv
 }
 
 // pingCommand handles ping command.

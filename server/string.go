@@ -31,8 +31,7 @@ func setCommand(c *client.Client) {
 		return
 	}
 
-	v := string(bytes.Join(c.Argv[1:], []byte(" ")))
-	c.DB.Store(datastructure.NewItem(string(c.Argv[0]), v, 0))
+	c.DB.Store(datastructure.NewItem(string(c.Argv[0]), string(c.Argv[1]), 0))
 
 	c.Conn.AsyncWrite(protocol.MakeSimpleString("OK"))
 }

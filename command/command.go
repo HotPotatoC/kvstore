@@ -36,13 +36,25 @@ const (
 	ReadWrite Type = Read | Write
 )
 
-func Parse(data []interface{}) ([]byte, [][]byte) {
-	recvCmd, rawRecvArgv := bytes.ToLower(data[0].([]byte)), data[1:]
+func WrapArgsFromQuotes(args [][]byte) [][]byte {
+	var wrappedArgs [][]byte
+	var buf bytes.Buffer
 
-	var recvArgv [][]byte
-	for _, v := range rawRecvArgv {
-		recvArgv = append(recvArgv, v.([]byte))
+	for _, arg := range args {
+		if arg[0] == '"' {
+			if buf.Len() > 0 {
+				wrappedArgs = append(wrappedArgs, buf.Bytes())
+				buf.Reset()
+			}
+			buf.Write(arg[1:])
+		} else {
+			buf.Write(arg)
+		}
 	}
 
-	return recvCmd, recvArgv
+	if buf.Len() > 0 {
+		wrappedArgs = append(wrappedArgs, buf.Bytes())
+	}
+
+	return wrappedArgs
 }
