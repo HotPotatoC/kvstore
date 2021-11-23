@@ -282,13 +282,7 @@ func (s *Server) handle(data []byte, conn gnet.Conn) {
 		return
 	}
 
-	recv := obj.([]interface{})
-	recvCmd, rawRecvArgv := bytes.ToLower(recv[0].([]byte)), recv[1:]
-
-	var recvArgv [][]byte
-	for _, v := range rawRecvArgv {
-		recvArgv = append(recvArgv, v.([]byte))
-	}
+	recvCmd, recvArgv := command.Parse(obj.([]interface{}))
 
 	cmd, ok := CommandTable[string(recvCmd)]
 	if !ok {

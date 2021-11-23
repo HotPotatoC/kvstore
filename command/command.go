@@ -1,6 +1,10 @@
 package command
 
-import "github.com/HotPotatoC/kvstore-rewrite/client"
+import (
+	"bytes"
+
+	"github.com/HotPotatoC/kvstore-rewrite/client"
+)
 
 // Command represents the command
 type Command struct {
@@ -31,3 +35,14 @@ const (
 	// ReadWrite is the read-write command type
 	ReadWrite Type = Read | Write
 )
+
+func Parse(data []interface{}) ([]byte, [][]byte) {
+	recvCmd, rawRecvArgv := bytes.ToLower(data[0].([]byte)), data[1:]
+
+	var recvArgv [][]byte
+	for _, v := range rawRecvArgv {
+		recvArgv = append(recvArgv, v.([]byte))
+	}
+
+	return recvCmd, recvArgv
+}
