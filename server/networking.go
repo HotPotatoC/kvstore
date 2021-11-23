@@ -27,7 +27,7 @@ const (
 // After the client is killed, send either 0 (false) or 1 (true) to the client.
 func (s *Server) killClient(c *client.Client, kct KillClientType, target interface{}) {
 	s.pool.Submit(func() {
-		delNum := 0
+		nKilled := 0
 		switch kct {
 		// Kill by the client ID
 		case KillClientByID:
@@ -37,12 +37,12 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 					if value.(*client.Client).Flags&client.FlagBusy != 0 {
 						// If the client is busy, mark it for close
 						value.(*client.Client).Flags |= client.FlagCloseASAP
-						delNum++
+						nKilled++
 					} else {
 						// If the client is not busy, kill it immediately
 						value.(*client.Client).Conn.Close()
 						s.clients.Delete(key)
-						delNum++
+						nKilled++
 					}
 					return false
 				}
@@ -56,7 +56,7 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 			if ok {
 				targetClient.(*client.Client).Conn.Close()
 				s.clients.Delete(target)
-				delNum++
+				nKilled++
 				c.Conn.AsyncWrite(protocol.MakeBool(true))
 				return
 			}
@@ -67,14 +67,14 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 				if value.(*client.Client).Name == target {
 					value.(*client.Client).Conn.Close()
 					s.clients.Delete(key)
-					delNum++
+					nKilled++
 					return false
 				}
 				return true
 			})
 		}
 
-		c.Conn.AsyncWrite(protocol.MakeBool(delNum > 0))
+		c.Conn.AsyncWrite(protocol.MakeBool(nKilled > 0))
 	})
 }
 
