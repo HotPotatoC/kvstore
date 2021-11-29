@@ -65,13 +65,12 @@ func ttlGenericCommand(c *client.Client, u unit) {
 		return
 	}
 
-	ttl, createdAt := item.TTL, item.CreatedAt
-	if ttl == 0 {
+	if item.ExpiresAt.IsZero() {
 		c.Conn.AsyncWrite(protocol.MakeInteger(-1))
 		return
 	}
 
-	leftToLive := ttl - time.Since(createdAt)
+	leftToLive := time.Until(item.ExpiresAt)
 	if u == unitSeconds {
 		c.Conn.AsyncWrite(protocol.MakeInteger(int64(leftToLive / time.Second)))
 	}

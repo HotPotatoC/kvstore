@@ -9,56 +9,49 @@ import (
 
 // Map is a thread-safe map.
 type Map struct {
-	Items sync.Map
+	items sync.Map
 	nSize int64
 }
 
 // NewMap returns a new Map.
 func NewMap() *Map {
-	return &Map{}
+	m := &Map{}
+
+	go m.janitor()
+
+	return m
 }
 
 // Store stores a new key-value pair.
 func (m *Map) Store(v *Item) {
-	m.Items.Store(v.Key, v)
+	m.items.Store(v.Key, v)
 	atomic.AddInt64(&m.nSize, 1)
-	if v.TTL > 0 {
-		time.AfterFunc(v.TTL, func() {
-			m.Items.Delete(v.Key)
-			atomic.AddInt64(&m.nSize, -1)
-		})
-	}
 }
 
 // Expire sets the expiration time of the key.
-// TODO: reset the timer of a key that is already has an expiry
 func (m *Map) Expire(k string, ttl time.Duration) int64 {
-	v, ok := m.Items.Load(k)
+	v, ok := m.items.Load(k)
 	if !ok {
 		return 0
 	}
 
-	v.(*Item).TTL = ttl
-	v.(*Item).Flag |= ItemFlagExpireXX
-	if ttl > 0 {
-		time.AfterFunc(ttl, func() {
-			m.Items.Delete(k)
-			atomic.AddInt64(&m.nSize, -1)
-		})
-	}
+	item := v.(*Item)
+
+	item.ExpiresAt = time.Now().Add(ttl)
 
 	return atomic.LoadInt64(&m.nSize)
 }
 
 // Get returns the value of the key.
 func (m *Map) Get(k string) (*Item, bool) {
-	v, ok := m.Items.Load(k)
+	v, ok := m.items.Load(k)
 	if !ok {
 		return nil, false
 	}
 
-	if v.(*Item).Flag&ItemFlagExpireXX != 0 && time.Since(v.(*Item).CreatedAt) > v.(*Item).TTL {
-		m.Items.Delete(k)
+	if v.(*Item).Flag&ItemFlagExpireXX != 0 && time.Now().After(v.(*Item).ExpiresAt) {
+		m.items.Delete(k)
+		atomic.AddInt64(&m.nSize, -1)
 		return nil, false
 	}
 
@@ -67,10 +60,10 @@ func (m *Map) Get(k string) (*Item, bool) {
 
 // Delete deletes the key.
 func (m *Map) Delete(k string) int64 {
-	if _, ok := m.Items.Load(k); !ok {
+	if _, ok := m.items.Load(k); !ok {
 		return 0
 	}
-	m.Items.Delete(k)
+	m.items.Delete(k)
 
 	prevNSize := atomic.LoadInt64(&m.nSize)
 	atomic.AddInt64(&m.nSize, -1)
@@ -88,7 +81,7 @@ func (m *Map) Len() int64 {
 func (m *Map) List() map[string]*Item {
 	items := make(map[string]*Item)
 
-	m.Items.Range(func(key, value interface{}) bool {
+	m.items.Range(func(key, value interface{}) bool {
 		items[key.(string)] = value.(*Item)
 		return true
 	})
@@ -99,8 +92,10 @@ func (m *Map) List() map[string]*Item {
 // Keys returns the keys of the map.
 func (m *Map) Keys() []string {
 	var keys []string
-	m.Items.Range(func(k, _ interface{}) bool {
-		keys = append(keys, k.(string))
+	m.items.Range(func(k, v interface{}) bool {
+		if time.Now().Before(v.(*Item).ExpiresAt) {
+			keys = append(keys, k.(string))
+		}
 		return true
 	})
 	return keys
@@ -109,7 +104,7 @@ func (m *Map) Keys() []string {
 // KeysWithPattern returns the keys of the map that match the pattern.
 func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
-	m.Items.Range(func(k, _ interface{}) bool {
+	m.items.Range(func(k, _ interface{}) bool {
 		if strings.Contains(k.(string), pattern) {
 			keys = append(keys, k.(string))
 		}
@@ -121,7 +116,7 @@ func (m *Map) KeysWithPattern(pattern string) []string {
 // Values returns the values of the map.
 func (m *Map) Values() []*Item {
 	values := make([]*Item, 0, atomic.LoadInt64(&m.nSize))
-	m.Items.Range(func(k, v interface{}) bool {
+	m.items.Range(func(k, v interface{}) bool {
 		values = append(values, v.(*Item))
 		return true
 	})
@@ -130,7 +125,7 @@ func (m *Map) Values() []*Item {
 
 // Exists checks if the key exists in the map.
 func (m *Map) Exists(k string) bool {
-	_, ok := m.Items.Load(k)
+	_, ok := m.items.Load(k)
 	return ok
 }
 
@@ -138,11 +133,26 @@ func (m *Map) Exists(k string) bool {
 func (m *Map) Clear() int64 {
 	prevNSize := atomic.LoadInt64(&m.nSize)
 	var delNum int64
-	m.Items.Range(func(k, v interface{}) bool {
-		m.Items.Delete(k)
+	m.items.Range(func(k, v interface{}) bool {
+		m.items.Delete(k)
 		atomic.AddInt64(&m.nSize, -1)
 		delNum++
 		return true
 	})
 	return prevNSize - atomic.LoadInt64(&m.nSize)
+}
+
+// janitor is a janitor that cleans up expired keys with 1 second interval.
+func (m *Map) janitor() {
+	for {
+		time.Sleep(time.Second)
+		m.items.Range(func(k, v interface{}) bool {
+			item := v.(*Item)
+			if item.Flag&ItemFlagExpireXX != 0 && time.Now().After(item.ExpiresAt) {
+				m.items.Delete(k)
+				return false
+			}
+			return true
+		})
+	}
 }

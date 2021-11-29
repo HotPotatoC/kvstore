@@ -24,10 +24,10 @@ type Item struct {
 	Size uint32
 	// Data stored by the item.
 	Data interface{}
-	// TTL of the item.
-	TTL time.Duration
 	// Flag is a bitmask of item options.
 	Flag ItemFlag
+	// ExpiresAt is the time when the item expires.
+	ExpiresAt time.Time
 	// CreatedAt is the time when the item is created.
 	CreatedAt time.Time
 }
@@ -45,8 +45,8 @@ func NewItem(key string, data interface{}, ttl time.Duration) *Item {
 		Key:       key,
 		Size:      uint32(unsafe.Sizeof(data)),
 		Data:      data,
-		TTL:       ttl,
 		Flag:      flag,
+		ExpiresAt: time.Now().Add(ttl),
 		CreatedAt: time.Now(),
 	}
 }
