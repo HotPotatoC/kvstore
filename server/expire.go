@@ -5,6 +5,7 @@ import (
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
 	"github.com/HotPotatoC/kvstore-rewrite/common"
+	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
 )
 
@@ -65,7 +66,8 @@ func ttlGenericCommand(c *client.Client, u unit) {
 		return
 	}
 
-	if item.ExpiresAt.IsZero() {
+	// If the item does not expire, -1 is returned.
+	if item.Flag&datastructure.ItemFlagExpireNX != 0 {
 		c.Conn.AsyncWrite(protocol.MakeInteger(-1))
 		return
 	}

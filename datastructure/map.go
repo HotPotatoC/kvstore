@@ -37,6 +37,11 @@ func (m *Map) Expire(k string, ttl time.Duration) int64 {
 
 	item := v.(*Item)
 
+	if item.Flag&ItemFlagExpireNX != 0 {
+		item.Flag &= ^ItemFlagExpireNX
+	}
+
+	item.Flag |= ItemFlagExpireXX
 	item.ExpiresAt = time.Now().Add(ttl)
 
 	return atomic.LoadInt64(&m.nSize)
@@ -93,7 +98,8 @@ func (m *Map) List() map[string]*Item {
 func (m *Map) Keys() []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
-		if time.Now().Before(v.(*Item).ExpiresAt) {
+		item := v.(*Item)
+		if item.Flag&ItemFlagExpireXX == 0 || time.Now().Before(item.ExpiresAt) {
 			keys = append(keys, k.(string))
 		}
 		return true
@@ -104,9 +110,10 @@ func (m *Map) Keys() []string {
 // KeysWithPattern returns the keys of the map that match the pattern.
 func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
-	m.items.Range(func(k, _ interface{}) bool {
-		if strings.Contains(k.(string), pattern) {
-			keys = append(keys, k.(string))
+	m.items.Range(func(k, v interface{}) bool {
+		key, item := k.(string), v.(*Item)
+		if strings.Contains(key, pattern) && (item.Flag&ItemFlagExpireXX == 0 || time.Now().Before(item.ExpiresAt)) {
+			keys = append(keys, key)
 		}
 		return true
 	})
@@ -142,7 +149,8 @@ func (m *Map) Clear() int64 {
 	return prevNSize - atomic.LoadInt64(&m.nSize)
 }
 
-// janitor is a janitor that cleans up expired keys with 1 second interval.
+// janitor cleans up expired keys from the map.
+// Runs every second.
 func (m *Map) janitor() {
 	for {
 		time.Sleep(time.Second)
@@ -150,7 +158,7 @@ func (m *Map) janitor() {
 			item := v.(*Item)
 			if item.Flag&ItemFlagExpireXX != 0 && time.Now().After(item.ExpiresAt) {
 				m.items.Delete(k)
-				return false
+				atomic.AddInt64(&m.nSize, -1)
 			}
 			return true
 		})
