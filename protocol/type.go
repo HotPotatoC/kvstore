@@ -65,9 +65,9 @@ func MakeBool(b bool) []byte {
 	var bb []byte
 	bb = append(bb, Integer)
 	if b {
-		bb = strconv.AppendInt(bb, 1, 10)
+		bb = append(bb, byte('1'))
 	} else {
-		bb = strconv.AppendInt(bb, 0, 10)
+		bb = append(bb, byte('0'))
 	}
 	bb = append(bb, CRLF...)
 	return bb
