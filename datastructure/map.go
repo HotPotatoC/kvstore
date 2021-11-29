@@ -37,11 +37,11 @@ func (m *Map) Expire(k string, ttl time.Duration) int64 {
 
 	item := v.(*Item)
 
-	if item.Flag&ItemFlagExpireNX != 0 {
-		item.Flag &= ^ItemFlagExpireNX
+	if item.HasFlag(ItemFlagExpireNX) {
+		item.RemoveFlag(ItemFlagExpireNX)
 	}
 
-	item.Flag |= ItemFlagExpireXX
+	item.AddFlag(ItemFlagExpireXX)
 	item.ExpiresAt = time.Now().Add(ttl)
 
 	return atomic.LoadInt64(&m.nSize)
@@ -54,7 +54,7 @@ func (m *Map) Get(k string) (*Item, bool) {
 		return nil, false
 	}
 
-	if v.(*Item).Flag&ItemFlagExpireXX != 0 && time.Now().After(v.(*Item).ExpiresAt) {
+	if v.(*Item).HasFlag(ItemFlagExpireXX) && time.Now().After(v.(*Item).ExpiresAt) {
 		m.items.Delete(k)
 		atomic.AddInt64(&m.nSize, -1)
 		return nil, false
@@ -99,7 +99,7 @@ func (m *Map) Keys() []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
 		item := v.(*Item)
-		if item.Flag&ItemFlagExpireXX == 0 || time.Now().Before(item.ExpiresAt) {
+		if item.HasFlag(ItemFlagExpireXX) || time.Now().Before(item.ExpiresAt) {
 			keys = append(keys, k.(string))
 		}
 		return true
@@ -112,7 +112,7 @@ func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
 		key, item := k.(string), v.(*Item)
-		if strings.Contains(key, pattern) && (item.Flag&ItemFlagExpireXX == 0 || time.Now().Before(item.ExpiresAt)) {
+		if strings.Contains(key, pattern) && (item.HasFlag(ItemFlagExpireXX) || time.Now().Before(item.ExpiresAt)) {
 			keys = append(keys, key)
 		}
 		return true
@@ -146,7 +146,7 @@ func (m *Map) janitor() {
 		time.Sleep(time.Second)
 		m.items.Range(func(k, v interface{}) bool {
 			item := v.(*Item)
-			if item.Flag&ItemFlagExpireXX != 0 && time.Now().After(item.ExpiresAt) {
+			if item.HasFlag(ItemFlagExpireXX) && time.Now().After(item.ExpiresAt) {
 				m.items.Delete(k)
 				atomic.AddInt64(&m.nSize, -1)
 			}

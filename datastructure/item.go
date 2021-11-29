@@ -34,19 +34,34 @@ type Item struct {
 
 // NewItem creates a new item.
 func NewItem(key string, data interface{}, ttl time.Duration) *Item {
-	flag := ItemFlagNone
-	if ttl == 0 {
-		flag |= ItemFlagExpireNX
-	} else if ttl > 0 {
-		flag |= ItemFlagExpireXX
-	}
-
-	return &Item{
+	item := &Item{
 		Key:       key,
 		Size:      uint32(unsafe.Sizeof(data)),
 		Data:      data,
-		Flag:      flag,
 		ExpiresAt: time.Now().Add(ttl),
 		CreatedAt: time.Now(),
 	}
+
+	if ttl == 0 {
+		item.Flag |= ItemFlagExpireNX
+	} else if ttl > 0 {
+		item.Flag |= ItemFlagExpireXX
+	}
+
+	return item
+}
+
+// HasFlag returns true if the item has the given flag.
+func (i *Item) HasFlag(flag ItemFlag) bool {
+	return i.Flag&flag != 0
+}
+
+// AddFlag adds the given flag to the item.
+func (i *Item) AddFlag(flag ItemFlag) {
+	i.Flag |= flag
+}
+
+// RemoveFlag removes the given flag from the item.
+func (i *Item) RemoveFlag(flag ItemFlag) {
+	i.Flag &= ^flag
 }

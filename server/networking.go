@@ -33,14 +33,14 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 		case KillClientByID:
 			logger.S().Debug("Killing client with ID: ", target)
 			s.clients.Range(func(key, value interface{}) bool {
-				if value.(*client.Client).ID == target {
-					if value.(*client.Client).Flags&client.FlagBusy != 0 {
+				targetClient := value.(*client.Client)
+				if targetClient.ID == target {
+					if targetClient.HasFlag(client.FlagBusy) {
 						// If the client is busy, mark it for close
-						value.(*client.Client).Flags |= client.FlagCloseASAP
-						nKilled++
+						targetClient.AddFlag(client.FlagCloseASAP)
 					} else {
 						// If the client is not busy, kill it immediately
-						value.(*client.Client).Conn.Close()
+						targetClient.Conn.Close()
 						s.clients.Delete(key)
 						nKilled++
 					}
@@ -64,8 +64,9 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 		case KillClientByName:
 			logger.S().Debug("Killing client with name: ", target.(string))
 			s.clients.Range(func(key, value interface{}) bool {
-				if value.(*client.Client).Name == target {
-					value.(*client.Client).Conn.Close()
+				targetClient := value.(*client.Client)
+				if targetClient.Name == target {
+					targetClient.Conn.Close()
 					s.clients.Delete(key)
 					nKilled++
 					return false
@@ -83,12 +84,12 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 // It also checks if the client is in the closing state and if so, it closes the connection.
 func (s *Server) afterCommand(c *client.Client) {
 	// Clear the busy flag
-	c.Flags &= ^client.FlagBusy
+	c.RemoveFlag(client.FlagBusy)
 	// Set the FlagNone flag
-	c.Flags |= client.FlagNone
+	c.AddFlag(client.FlagNone)
 
-	if c.Flags&client.FlagCloseASAP != 0 { // If the client is marked for close, close the connection
-		c.Flags &= ^client.FlagCloseASAP
+	if c.HasFlag(client.FlagCloseASAP) {
+		c.RemoveFlag(client.FlagCloseASAP)
 		s.killClient(c, KillClientByID, c.ID)
 	}
 }

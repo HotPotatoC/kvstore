@@ -63,3 +63,18 @@ type Client struct {
 	// CreateTime is the time when the client is created.
 	CreateTime time.Time
 }
+
+// HasFlag returns true if the client has the specified flag.
+func (c *Client) HasFlag(flag Flags) bool {
+	return c.Flags&flag != 0
+}
+
+// AddFlag adds the specified flag to the client.
+func (c *Client) AddFlag(flag Flags) {
+	c.Flags |= flag
+}
+
+// RemoveFlag removes the specified flag from the client.
+func (c *Client) RemoveFlag(flag Flags) {
+	c.Flags &= ^flag
+}

@@ -319,14 +319,16 @@ func (s *Server) handle(data []byte, conn gnet.Conn) {
 	c.Command = cmd.Name
 	c.Argv = recvArgv
 	c.Argc = len(recvArgv)
-	c.Flags &= ^client.FlagNone
-	c.Flags |= client.FlagBusy // mark the client as busy
+
+	// mark the client as busy
+	c.RemoveFlag(client.FlagNone)
+	c.AddFlag(client.FlagBusy)
 
 	cmd.Proc(c)
 	s.afterCommand(c)
 }
 
-// parseObject parses the resp3 object from the given data.
+// parseObject parses the resp3 object sent by the client.
 // returns the command and the arguments.
 func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
 	reader := protocol.NewReader(bytes.NewReader(data))

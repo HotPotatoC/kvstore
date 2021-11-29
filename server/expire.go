@@ -67,7 +67,7 @@ func ttlGenericCommand(c *client.Client, u unit) {
 	}
 
 	// If the item does not expire, -1 is returned.
-	if item.Flag&datastructure.ItemFlagExpireNX != 0 {
+	if item.HasFlag(datastructure.ItemFlagExpireNX) {
 		c.Conn.AsyncWrite(protocol.MakeInteger(-1))
 		return
 	}
