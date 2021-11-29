@@ -49,12 +49,3 @@ func Benchmark_Keys(b *testing.B) {
 		hmap.Keys()
 	}
 }
-
-func Benchmark_Values(b *testing.B) {
-	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		hmap.Values()
-	}
-}

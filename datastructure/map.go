@@ -120,16 +120,6 @@ func (m *Map) KeysWithPattern(pattern string) []string {
 	return keys
 }
 
-// Values returns the values of the map.
-func (m *Map) Values() []*Item {
-	values := make([]*Item, 0, atomic.LoadInt64(&m.nSize))
-	m.items.Range(func(k, v interface{}) bool {
-		values = append(values, v.(*Item))
-		return true
-	})
-	return values
-}
-
 // Exists checks if the key exists in the map.
 func (m *Map) Exists(k string) bool {
 	_, ok := m.items.Load(k)

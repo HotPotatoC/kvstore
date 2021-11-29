@@ -127,18 +127,3 @@ func keysCommand(c *client.Client) {
 
 	c.Conn.AsyncWrite(protocol.MakeArray(keys...))
 }
-
-// valuesCommand returns all values in the database
-func valuesCommand(c *client.Client) {
-	if c.Argc > 1 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'values' command"))
-		return
-	}
-
-	var values [][]byte
-	for _, v := range c.DB.Values() {
-		values = append(values, protocol.MakeBulkString(v.Data.(string)))
-	}
-
-	c.Conn.AsyncWrite(protocol.MakeArray(values...))
-}

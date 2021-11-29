@@ -76,11 +76,6 @@ var CommandTable = map[string]command.Command{
 		Description: "Gets all keys",
 		Type:        command.Read,
 		Proc:        keysCommand},
-	"values": {
-		Name:        "values",
-		Description: "Gets all values",
-		Type:        command.Read,
-		Proc:        valuesCommand},
 	"info": {
 		Name:        "info",
 		Description: "Gets server info",
