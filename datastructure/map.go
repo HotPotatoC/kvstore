@@ -30,6 +30,26 @@ func (m *Map) Store(v *Item) {
 	}
 }
 
+// Expire sets the expiration time of the key.
+// TODO: reset the timer of a key that is already has an expiry
+func (m *Map) Expire(k string, ttl time.Duration) int64 {
+	v, ok := m.Items.Load(k)
+	if !ok {
+		return 0
+	}
+
+	v.(*Item).TTL = ttl
+	v.(*Item).Flag |= ItemFlagExpireXX
+	if ttl > 0 {
+		time.AfterFunc(ttl, func() {
+			m.Items.Delete(k)
+			atomic.AddInt64(&m.nSize, -1)
+		})
+	}
+
+	return atomic.LoadInt64(&m.nSize)
+}
+
 // Get returns the value of the key.
 func (m *Map) Get(k string) (*Item, bool) {
 	v, ok := m.Items.Load(k)
@@ -37,7 +57,7 @@ func (m *Map) Get(k string) (*Item, bool) {
 		return nil, false
 	}
 
-	if v.(*Item).TTL > 0 && time.Since(v.(*Item).CreatedAt) > v.(*Item).TTL {
+	if v.(*Item).Flag&ItemFlagExpireXX != 0 && time.Since(v.(*Item).CreatedAt) > v.(*Item).TTL {
 		m.Items.Delete(k)
 		return nil, false
 	}
@@ -106,6 +126,12 @@ func (m *Map) Values() []*Item {
 		return true
 	})
 	return values
+}
+
+// Exists checks if the key exists in the map.
+func (m *Map) Exists(k string) bool {
+	_, ok := m.Items.Load(k)
+	return ok
 }
 
 // Clear clears the map.

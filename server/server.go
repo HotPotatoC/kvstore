@@ -101,6 +101,26 @@ var CommandTable = map[string]command.Command{
 		Description: "Gets all commands",
 		Type:        command.Read,
 		Proc:        commandCommand},
+	"expire": {
+		Name:        "expire",
+		Description: "Sets a key's expiration by seconds",
+		Type:        command.Write,
+		Proc:        expireCommand},
+	"pexpire": {
+		Name:        "pexpire",
+		Description: "Sets a key's expiration by milliseconds",
+		Type:        command.Write,
+		Proc:        pexpireCommand},
+	"ttl": {
+		Name:        "ttl",
+		Description: "Gets a key's expiration in seconds",
+		Type:        command.Read,
+		Proc:        ttlCommand},
+	"pttl": {
+		Name:        "pttl",
+		Description: "Gets a key's expiration in milliseconds",
+		Type:        command.Read,
+		Proc:        pttlCommand},
 	"client": {
 		Name:        "client",
 		SubCommands: clientSubCommands,
@@ -301,12 +321,11 @@ func (s *Server) handle(data []byte, conn gnet.Conn) {
 	v, _ := s.clients.Load(conn.RemoteAddr().String())
 
 	c := v.(*client.Client)
+	c.Command = cmd.Name
 	c.Argv = recvArgv
 	c.Argc = len(recvArgv)
-	if cmd.Type == command.Write || cmd.Type == command.ReadWrite {
-		c.Flags &= ^client.FlagNone // clear flags
-		c.Flags |= client.FlagBusy  // set the client as busy
-	}
+	c.Flags &= ^client.FlagNone
+	c.Flags |= client.FlagBusy // mark the client as busy
 
 	cmd.Proc(c)
 	s.afterCommand(c)
@@ -333,9 +352,9 @@ func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
 	}
 
 	// Wrap args if it starts with a quote
-	// if len(recvArgv) > 0 && recvArgv[0][0] == '"' {
-	// 	recvArgv = command.WrapArgsFromQuotes(recvArgv)
-	// }
+	if len(recvArgv) > 0 && recvArgv[0][0] == '"' {
+		recvArgv = command.WrapArgsFromQuotes(recvArgv)
+	}
 
 	return recvCmd, recvArgv
 }

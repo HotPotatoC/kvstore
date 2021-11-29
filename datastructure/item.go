@@ -5,6 +5,17 @@ import (
 	"unsafe"
 )
 
+type ItemFlag uint32
+
+const (
+	// ItemFlagNone is the default flag.
+	ItemFlagNone ItemFlag = 0
+	// ItemExpireNX indicates that the item has no expiry.
+	ItemFlagExpireNX ItemFlag = 1 << iota
+	// ItemExpireXX indicates that the item has an expiry.
+	ItemFlagExpireXX
+)
+
 // Item represents an item stored in the map.
 type Item struct {
 	// Key is the key of the item.
@@ -13,19 +24,29 @@ type Item struct {
 	Size uint32
 	// Data stored by the item.
 	Data interface{}
-	// TTL of the item. (ms)
+	// TTL of the item.
 	TTL time.Duration
+	// Flag is a bitmask of item options.
+	Flag ItemFlag
 	// CreatedAt is the time when the item is created.
 	CreatedAt time.Time
 }
 
 // NewItem creates a new item.
 func NewItem(key string, data interface{}, ttl time.Duration) *Item {
+	flag := ItemFlagNone
+	if ttl == 0 {
+		flag |= ItemFlagExpireNX
+	} else if ttl > 0 {
+		flag |= ItemFlagExpireXX
+	}
+
 	return &Item{
 		Key:       key,
 		Size:      uint32(unsafe.Sizeof(data)),
 		Data:      data,
 		TTL:       ttl,
+		Flag:      flag,
 		CreatedAt: time.Now(),
 	}
 }

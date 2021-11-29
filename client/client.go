@@ -54,6 +54,8 @@ type Client struct {
 	DB *datastructure.Map
 	// kvsDB is the file used to persist the data structure.
 	KVSDB *disk.KVSDB
+	// Command is the command that the client is currently executing.
+	Command string
 	// Argc is the number of arguments excluding the command.
 	Argc int
 	// Argv is the arguments excluding the command.
