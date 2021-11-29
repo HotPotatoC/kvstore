@@ -28,9 +28,9 @@ type Type uint8
 
 const (
 	// Read is the read command type
-	Read Type = 0x01
+	Read Type = 1 << iota
 	// Write is the write command type
-	Write Type = 0x02
+	Write
 
 	// ReadWrite is the read-write command type
 	ReadWrite Type = Read | Write
