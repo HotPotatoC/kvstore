@@ -137,6 +137,7 @@ func Test_KeysWithPattern(t *testing.T) {
 		{"*", []string{"hello", "hallo", "hbllo", "hllo", "hxllo", "heeeeello"}},
 		{"h[a-e]llo", []string{"hello", "hallo", "hbllo"}},
 		{"h?llo", []string{"hello", "hallo", "hbllo", "hxllo"}},
+		{"?[a-e]*", []string{"hello", "hallo", "hbllo", "heeeeello"}},
 	}
 
 	for _, tt := range tc {
