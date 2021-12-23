@@ -99,7 +99,7 @@ func (m *Map) Keys() []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
 		item := v.(*Item)
-		if item.HasFlag(ItemFlagExpireXX) || time.Now().Before(item.ExpiresAt) {
+		if item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt) {
 			keys = append(keys, k.(string))
 		}
 		return true
@@ -112,7 +112,7 @@ func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
 		key, item := k.(string), v.(*Item)
-		if strings.Contains(key, pattern) && (item.HasFlag(ItemFlagExpireXX) || time.Now().Before(item.ExpiresAt)) {
+		if strings.Contains(key, pattern) && (item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt)) {
 			keys = append(keys, key)
 		}
 		return true
