@@ -55,7 +55,7 @@ func (m *Map) Get(k string) (*Item, bool) {
 	}
 
 	if v.(*Item).HasFlag(ItemFlagExpireXX) && time.Now().After(v.(*Item).ExpiresAt) {
-		m.items.Delete(k)
+		m.delete(k)
 		atomic.AddInt64(&m.nSize, -1)
 		return nil, false
 	}
@@ -65,16 +65,53 @@ func (m *Map) Get(k string) (*Item, bool) {
 
 // Delete deletes the key.
 func (m *Map) Delete(k string) int64 {
-	if _, ok := m.items.Load(k); !ok {
-		return 0
-	}
-	m.items.Delete(k)
-
 	prevNSize := atomic.LoadInt64(&m.nSize)
-	atomic.AddInt64(&m.nSize, -1)
+	deletedN := m.delete(k)
+	atomic.AddInt64(&m.nSize, -deletedN)
 
 	// return the deleted amount
 	return prevNSize - atomic.LoadInt64(&m.nSize)
+}
+
+func (m *Map) delete(k string) int64 {
+	deletedN := int64(0)
+
+	_, loaded := m.items.LoadAndDelete(k)
+	if !loaded {
+		// If the given key was not loaded, attempt to check
+		// if it's a glob pattern or not
+
+		// First, check if the pattern is valid or not
+		_, err := filepath.Match(k, "")
+		if err != nil {
+			return 0
+		}
+
+		isGlobPattern := false
+		for i := 0; i < len(k); i++ {
+			if k[i] == '*' || k[i] == '?' || k[i] == '[' {
+				isGlobPattern = true
+				break
+			}
+		}
+
+		if !isGlobPattern {
+			return 0
+		}
+
+		// Search and delete each key that satisfies the pattern O(n)
+		m.items.Range(func(key, value interface{}) bool {
+			if match, _ := filepath.Match(k, key.(string)); match {
+				m.items.Delete(key)
+				deletedN++
+			}
+			return true
+		})
+	} else {
+		deletedN++
+	}
+
+	return deletedN
 }
 
 // Len returns the number of items in the map.
