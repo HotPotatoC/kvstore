@@ -1,7 +1,7 @@
 package datastructure
 
 import (
-	"strings"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -112,7 +112,7 @@ func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
 	m.items.Range(func(k, v interface{}) bool {
 		key, item := k.(string), v.(*Item)
-		if strings.Contains(key, pattern) && (item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt)) {
+		if match, _ := filepath.Match(pattern, key); match && (item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt)) {
 			keys = append(keys, key)
 		}
 		return true
