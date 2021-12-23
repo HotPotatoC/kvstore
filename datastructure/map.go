@@ -76,6 +76,17 @@ func (m *Map) Delete(k string) int64 {
 func (m *Map) delete(k string) int64 {
 	deletedN := int64(0)
 
+	// Delete all keys if '*' pattern is provided
+	if k == "*" {
+		m.items.Range(func(key, value interface{}) bool {
+			m.items.Delete(key)
+			deletedN++
+			return true
+		})
+
+		return deletedN
+	}
+
 	_, loaded := m.items.LoadAndDelete(k)
 	if !loaded {
 		// If the given key was not loaded, attempt to check
