@@ -28,6 +28,11 @@ test: ## Run the tests
 bench: ## Run the benchmarks
 	go test -bench=. -benchmem ./...
 
+.PHONY: coverage
+coverage: ## Generate coverage report
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
 .PHONY: install
 install: ## Install the binary
 	go install -ldflags "${LDFLAGS}" ./...

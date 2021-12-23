@@ -6,5 +6,6 @@
 *.test
 *.out
 *.kvsdb
+coverage*
 
 .vscode
