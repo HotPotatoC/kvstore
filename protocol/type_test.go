@@ -147,6 +147,14 @@ func TestWriter_MakeBulkString(t *testing.T) {
 	}
 }
 
+func TestWriter_MakeNull(t *testing.T) {
+	res := protocol.MakeNull()
+
+	if !bytes.Equal(res, []byte("$-1\r\n")) {
+		t.Errorf("expected %#v, got %#v", string("$-1\r\n"), string(res))
+	}
+}
+
 func TestWriter_MakeArray(t *testing.T) {
 	tc := []struct {
 		name string

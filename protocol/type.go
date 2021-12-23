@@ -88,7 +88,7 @@ func MakeBulkString(s string) []byte {
 func MakeNull() []byte {
 	var b []byte
 	b = append(b, BulkString)
-	b = strconv.AppendInt(b, int64(-1), 10)
+	b = append(b, []byte("-1")...)
 	b = append(b, CRLF...)
 	return b
 }
