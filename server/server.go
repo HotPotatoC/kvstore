@@ -196,7 +196,7 @@ func (s *Server) Run() error {
 
 // Stop stops the server.
 func (s *Server) Stop() {
-	s.clients.Range(func(key, value interface{}) bool {
+	s.clients.Range(func(key, value any) bool {
 		c := value.(*client.Client)
 		c.Conn.Close()
 		s.clients.Delete(key)
@@ -339,7 +339,7 @@ func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
 		return nil, nil
 	}
 
-	recv := obj.([]interface{})
+	recv := obj.([]any)
 
 	recvCmd, rawRecvArgv := bytes.ToLower(recv[0].([]byte)), recv[1:]
 

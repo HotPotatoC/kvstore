@@ -78,7 +78,7 @@ func (m *Map) delete(k string) int64 {
 
 	// Delete all keys if '*' pattern is provided
 	if k == "*" {
-		m.items.Range(func(key, value interface{}) bool {
+		m.items.Range(func(key, value any) bool {
 			m.items.Delete(key)
 			deletedN++
 			return true
@@ -111,7 +111,7 @@ func (m *Map) delete(k string) int64 {
 		}
 
 		// Search and delete each key that satisfies the pattern O(n)
-		m.items.Range(func(key, value interface{}) bool {
+		m.items.Range(func(key, value any) bool {
 			if match, _ := filepath.Match(k, key.(string)); match {
 				m.items.Delete(key)
 				deletedN++
@@ -134,7 +134,7 @@ func (m *Map) Len() int64 {
 func (m *Map) List() map[string]*Item {
 	items := make(map[string]*Item)
 
-	m.items.Range(func(key, value interface{}) bool {
+	m.items.Range(func(key, value any) bool {
 		items[key.(string)] = value.(*Item)
 		return true
 	})
@@ -145,7 +145,7 @@ func (m *Map) List() map[string]*Item {
 // Keys returns the keys of the map.
 func (m *Map) Keys() []string {
 	var keys []string
-	m.items.Range(func(k, v interface{}) bool {
+	m.items.Range(func(k, v any) bool {
 		item := v.(*Item)
 		if item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt) {
 			keys = append(keys, k.(string))
@@ -158,7 +158,7 @@ func (m *Map) Keys() []string {
 // KeysWithPattern returns the keys of the map that match the pattern.
 func (m *Map) KeysWithPattern(pattern string) []string {
 	var keys []string
-	m.items.Range(func(k, v interface{}) bool {
+	m.items.Range(func(k, v any) bool {
 		key, item := k.(string), v.(*Item)
 		if match, _ := filepath.Match(pattern, key); match && (item.HasFlag(ItemFlagExpireNX) || time.Now().Before(item.ExpiresAt)) {
 			keys = append(keys, key)
@@ -178,7 +178,7 @@ func (m *Map) Exists(k string) bool {
 func (m *Map) Clear() int64 {
 	prevNSize := atomic.LoadInt64(&m.nSize)
 	var delNum int64
-	m.items.Range(func(k, v interface{}) bool {
+	m.items.Range(func(k, v any) bool {
 		m.items.Delete(k)
 		atomic.AddInt64(&m.nSize, -1)
 		delNum++
@@ -192,7 +192,7 @@ func (m *Map) Clear() int64 {
 func (m *Map) janitor() {
 	for {
 		time.Sleep(time.Second)
-		m.items.Range(func(k, v interface{}) bool {
+		m.items.Range(func(k, v any) bool {
 			item := v.(*Item)
 			if item.HasFlag(ItemFlagExpireXX) && time.Now().After(item.ExpiresAt) {
 				m.items.Delete(k)

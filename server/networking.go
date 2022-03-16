@@ -25,14 +25,14 @@ const (
 
 // killClient kills the client with the given target ID or remote address (addr:port) or the name of the client.
 // After the client is killed, send either 0 (false) or 1 (true) to the client.
-func (s *Server) killClient(c *client.Client, kct KillClientType, target interface{}) {
+func (s *Server) killClient(c *client.Client, kct KillClientType, target any) {
 	s.pool.Submit(func() {
 		nKilled := 0
 		switch kct {
 		// Kill by the client ID
 		case KillClientByID:
 			logger.S().Debug("Killing client with ID: ", target)
-			s.clients.Range(func(key, value interface{}) bool {
+			s.clients.Range(func(key, value any) bool {
 				targetClient := value.(*client.Client)
 				if targetClient.ID == target {
 					if targetClient.HasFlag(client.FlagBusy) {
@@ -63,7 +63,7 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target interfa
 		// Kill by the client name
 		case KillClientByName:
 			logger.S().Debug("Killing client with name: ", target.(string))
-			s.clients.Range(func(key, value interface{}) bool {
+			s.clients.Range(func(key, value any) bool {
 				targetClient := value.(*client.Client)
 				if targetClient.Name == target {
 					targetClient.Conn.Close()
@@ -157,7 +157,7 @@ func clientInfoSubCommand(c *client.Client) {
 func clientListSubCommand(c *client.Client) {
 	var clientss []string
 
-	server.clients.Range(func(key, value interface{}) bool {
+	server.clients.Range(func(key, value any) bool {
 		client := value.(*client.Client)
 		var ss string
 		ss += "id=" + strconv.FormatInt(client.ID, 10)

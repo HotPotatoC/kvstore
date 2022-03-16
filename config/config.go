@@ -16,7 +16,7 @@ const (
 
 // Defaults is the default configuration values and
 // is used when a configuration file was not found
-var Defaults = map[string]interface{}{
+var Defaults = map[string]any{
 	"server.port":  7275,
 	"server.addrs": []string{"tcp://127.0.0.1"},
 

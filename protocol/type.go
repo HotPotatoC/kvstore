@@ -1,6 +1,8 @@
 package protocol
 
-import "strconv"
+import (
+	"strconv"
+)
 
 const (
 	// SimpleString represents a string.

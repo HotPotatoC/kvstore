@@ -23,7 +23,7 @@ type Item struct {
 	// size of the item.
 	Size uint32
 	// Data stored by the item.
-	Data interface{}
+	Data any
 	// Flag is a bitmask of item options.
 	Flag ItemFlag
 	// ExpiresAt is the time when the item expires.
@@ -33,7 +33,7 @@ type Item struct {
 }
 
 // NewItem creates a new item.
-func NewItem(key string, data interface{}, ttl time.Duration) *Item {
+func NewItem(key string, data any, ttl time.Duration) *Item {
 	item := &Item{
 		Key:       key,
 		Size:      uint32(unsafe.Sizeof(data)),
