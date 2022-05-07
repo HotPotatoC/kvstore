@@ -26,7 +26,7 @@ func NewReader(r io.Reader) *Reader {
 }
 
 // ReadObject reads an object from the reader.
-func (r *Reader) ReadObject() (interface{}, error) {
+func (r *Reader) ReadObject() (any, error) {
 	// read the line from the stream
 	line, err := r.readLine()
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *Reader) ReadObject() (interface{}, error) {
 			return nil, nil
 		}
 
-		result := make([]interface{}, len)
+		result := make([]any, len)
 		for i := 0; i < len; i++ {
 			result[i], err = r.ReadObject()
 			if err != nil {
