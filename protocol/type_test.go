@@ -2,6 +2,7 @@ package protocol_test
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
@@ -38,6 +39,12 @@ func TestWriter_MakeSimpleString(t *testing.T) {
 	}{
 		{name: "OK", args: "OK", exp: []byte("+OK\r\n")},
 		{name: "PONG", args: "PONG", exp: []byte("+PONG\r\n")},
+		{name: "Hello World", args: "Hello World", exp: []byte("+Hello World\r\n")},
+		{name: " ", args: " ", exp: []byte("+ \r\n")},
+		{name: "123", args: "123", exp: []byte("+123\r\n")},
+		{name: "_!*&#%(!#", args: "_!*&#%(!#", exp: []byte("+_!*&#%(!#\r\n")},
+		{name: "泃", args: "泃", exp: []byte("+泃\r\n")},
+		{name: "ټ", args: "ټ", exp: []byte("+ټ\r\n")},
 	}
 
 	for _, tt := range tc {
@@ -48,6 +55,26 @@ func TestWriter_MakeSimpleString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzTestWriter_MakeSimpleString(f *testing.F) {
+	tc := []string{"OK", "PONG", "Hello World", " ", "123", "_!*&#%(!#", "泃", "ټ"}
+
+	for _, tt := range tc {
+		f.Add(tt)
+	}
+
+	f.Fuzz(func(t *testing.T, args string) {
+		res := protocol.MakeSimpleString(args)
+
+		exp := []byte{protocol.SimpleString}
+		exp = append(exp, args...)
+		exp = append(exp, protocol.CRLF...)
+
+		if !bytes.Equal(res, exp) {
+			t.Errorf("expected %#v, got %#v", string(exp), string(res))
+		}
+	})
 }
 
 func TestWriter_MakeError(t *testing.T) {
@@ -68,6 +95,26 @@ func TestWriter_MakeError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzTestWriter_MakeError(f *testing.F) {
+	tc := []string{"ERR", "ERR with message"}
+
+	for _, tt := range tc {
+		f.Add(tt)
+	}
+
+	f.Fuzz(func(t *testing.T, args string) {
+		res := protocol.MakeError(args)
+
+		exp := []byte{protocol.Error}
+		exp = append(exp, args...)
+		exp = append(exp, protocol.CRLF...)
+
+		if !bytes.Equal(res, exp) {
+			t.Errorf("expected %#v, got %#v", string(exp), string(res))
+		}
+	})
 }
 
 func TestWriter_MakeInteger(t *testing.T) {
@@ -105,6 +152,48 @@ func TestWriter_MakeInteger(t *testing.T) {
 	}
 }
 
+func FuzzTestWriter_MakeInteger(f *testing.F) {
+	tc := []int64{0,
+		1,
+		123,
+		123456,
+		123456789,
+		10,
+		100,
+		1000,
+		10000,
+		100000,
+		1000000,
+		10000000,
+		-1,
+		-123,
+		-123456,
+		-123456789,
+		-10,
+		-100,
+		-1000,
+		-10000,
+		-100000,
+		-1000000,
+		-10000000}
+
+	for _, tt := range tc {
+		f.Add(tt)
+	}
+
+	f.Fuzz(func(t *testing.T, args int64) {
+		res := protocol.MakeInteger(args)
+
+		exp := []byte{protocol.Integer}
+		exp = append(exp, strconv.FormatInt(args, 10)...)
+		exp = append(exp, protocol.CRLF...)
+
+		if !bytes.Equal(res, exp) {
+			t.Errorf("expected %#v, got %#v", string(exp), string(res))
+		}
+	})
+}
+
 func Test_MakeBool(t *testing.T) {
 	tc := []struct {
 		name string
@@ -135,6 +224,11 @@ func TestWriter_MakeBulkString(t *testing.T) {
 		{name: "1", args: "1", exp: []byte("$1\r\n1\r\n")},
 		{name: "10", args: "1234567890", exp: []byte("$10\r\n1234567890\r\n")},
 		{name: "Hello World", args: "Hello World", exp: []byte("$11\r\nHello World\r\n")},
+		{name: " ", args: " ", exp: []byte("$1\r\n \r\n")},
+		{name: "123", args: "123", exp: []byte("$3\r\n123\r\n")},
+		{name: "_!*&#%(!#", args: "_!*&#%(!#", exp: []byte("$9\r\n_!*&#%(!#\r\n")},
+		{name: "泃", args: "泃", exp: []byte("$3\r\n泃\r\n")},
+		{name: "ټ", args: "ټ", exp: []byte("$2\r\nټ\r\n")},
 	}
 
 	for _, tt := range tc {
@@ -145,6 +239,29 @@ func TestWriter_MakeBulkString(t *testing.T) {
 			}
 		})
 	}
+}
+
+
+func FuzzTestWriter_MakeBulkString(f *testing.F) {
+	tc := []string{"OK", "PONG", "Hello World", " ", "123", "_!*&#%(!#", "泃", "ټ"}
+
+	for _, tt := range tc {
+		f.Add(tt)
+	}
+
+	f.Fuzz(func(t *testing.T, args string) {
+		res := protocol.MakeBulkString(args)
+
+		exp := []byte{protocol.BulkString}
+		exp = append(exp, strconv.Itoa(len(args))...)
+		exp = append(exp, protocol.CRLF...)
+		exp = append(exp, args...)
+		exp = append(exp, protocol.CRLF...)
+
+		if !bytes.Equal(res, exp) {
+			t.Errorf("expected %#v, got %#v", string(exp), string(res))
+		}
+	})
 }
 
 func TestWriter_MakeNull(t *testing.T) {
