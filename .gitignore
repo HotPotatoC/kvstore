@@ -11,3 +11,5 @@ coverage*
 .vscode
 
 testdata
+# Added by goreleaser init:
+dist/
