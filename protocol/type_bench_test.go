@@ -19,7 +19,7 @@ func BenchmarkWriter_MakeCommand(b *testing.B) {
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			b.ReportAllocs() // Crucial for seeing the effect of pre-allocation
+			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				protocol.MakeCommand(bm.args...)
@@ -90,11 +90,10 @@ func BenchmarkWriter_MakeBulkString(b *testing.B) {
 
 	for _, bm := range benchmarks {
 		b.Run(bm.name, func(b *testing.B) {
-			// Prepare the payload outside the timed loop
 			payload := strings.Repeat("a", bm.size)
 
 			b.ReportAllocs()
-			b.SetBytes(int64(len(payload))) // This will report MB/s throughput
+			b.SetBytes(int64(len(payload)))
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
@@ -104,8 +103,6 @@ func BenchmarkWriter_MakeBulkString(b *testing.B) {
 	}
 }
 
-// You can add a benchmark for MakeNull if you want, but it will
-// likely be too fast to measure accurately since it's just returning a constant.
 func BenchmarkWriter_MakeNull(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
