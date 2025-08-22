@@ -5,7 +5,7 @@ import (
 
 	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
 	"github.com/HotPotatoC/kvstore-rewrite/disk"
-	"github.com/panjf2000/gnet"
+	"github.com/panjf2000/gnet/v2"
 )
 
 // Flags is a bitmask of client options.

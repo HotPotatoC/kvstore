@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
@@ -19,6 +20,6 @@ type Stats struct {
 
 // infoCommand is the command to get server info
 // TODO: implement
-func infoCommand(c *client.Client) {
-	c.Conn.AsyncWrite(protocol.MakeError("NOT_IMPLEMENTED"))
+func infoCommand(c *client.Client, res *bytes.Buffer) {
+	res.Write(protocol.MakeError("NOT_IMPLEMENTED"))
 }

@@ -94,7 +94,7 @@ func (r *Reader) ReadObject() (any, error) {
 
 		result := make([]any, n)
 		var dataBuf bytes.Buffer
-		for i := 0; i < n; i++ {
+		for i := range n {
 			// Read the next object in the array
 			obj, err := r.ReadObject()
 			if err != nil {

@@ -28,7 +28,7 @@ Current available commands are:
 
 ## To Do
 
-- [ ] Pipelining commands
+- [x] Pipelining commands
 - [ ] AOF
 - [ ] ACL
 - [ ] Clustering

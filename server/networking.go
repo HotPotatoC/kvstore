@@ -25,7 +25,7 @@ const (
 
 // killClient kills the client with the given target ID or remote address (addr:port) or the name of the client.
 // After the client is killed, send either 0 (false) or 1 (true) to the client.
-func (s *Server) killClient(c *client.Client, kct KillClientType, target any) {
+func (s *Server) killClient(c *client.Client, res *bytes.Buffer, kct KillClientType, target any) {
 	s.pool.Submit(func() {
 		nKilled := 0
 		switch kct {
@@ -57,7 +57,7 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target any) {
 				targetClient.(*client.Client).Conn.Close()
 				s.clients.Delete(target)
 				nKilled++
-				c.Conn.AsyncWrite(protocol.MakeBool(true))
+				res.Write(protocol.MakeBool(true))
 				return
 			}
 		// Kill by the client name
@@ -75,14 +75,14 @@ func (s *Server) killClient(c *client.Client, kct KillClientType, target any) {
 			})
 		}
 
-		c.Conn.AsyncWrite(protocol.MakeBool(nKilled > 0))
+		res.Write(protocol.MakeBool(nKilled > 0))
 	})
 }
 
 // afterCommand is called after a command is executed.
 // It reads the client flags and returns the client to the free state.
 // It also checks if the client is in the closing state and if so, it closes the connection.
-func (s *Server) afterCommand(c *client.Client) {
+func (s *Server) afterCommand(c *client.Client, res *bytes.Buffer) {
 	// Clear the busy flag
 	c.RemoveFlag(client.FlagBusy)
 	// Set the FlagNone flag
@@ -90,58 +90,58 @@ func (s *Server) afterCommand(c *client.Client) {
 
 	if c.HasFlag(client.FlagCloseASAP) {
 		c.RemoveFlag(client.FlagCloseASAP)
-		s.killClient(c, KillClientByID, c.ID)
+		s.killClient(c, res, KillClientByID, c.ID)
 	}
 }
 
 // clientCommand is a command that handles client commands.
-func clientCommand(c *client.Client) {
+func clientCommand(c *client.Client, res *bytes.Buffer) {
 	subCmd := bytes.ToLower(c.Argv[0])
 
 	// id sub-command
 	if bytes.Equal(subCmd, []byte("id")) {
-		clientIDSubCommand(c)
+		clientIDSubCommand(c, res)
 		return
 	}
 
 	// info sub-command
 	if bytes.Equal(subCmd, []byte("info")) {
-		clientInfoSubCommand(c)
+		clientInfoSubCommand(c, res)
 		return
 	}
 
 	// list sub-command
 	if bytes.Equal(subCmd, []byte("list")) {
-		clientListSubCommand(c)
+		clientListSubCommand(c, res)
 		return
 	}
 
 	// kill sub-command
 	if bytes.Equal(subCmd, []byte("kill")) {
-		clientKillSubCommand(c)
+		clientKillSubCommand(c, res)
 		return
 	}
 
 	// setname sub-command
 	if bytes.Equal(subCmd, []byte("setname")) {
-		clientSetNameSubCommand(c)
+		clientSetNameSubCommand(c, res)
 		return
 	}
 
 	// getname sub-command
 	if bytes.Equal(subCmd, []byte("getname")) {
-		clientGetNameSubCommand(c)
+		clientGetNameSubCommand(c, res)
 		return
 	}
 }
 
 // clientIDSubCommand Returns the id of the current connection.
-func clientIDSubCommand(c *client.Client) {
-	c.Conn.AsyncWrite(protocol.MakeInteger(c.ID))
+func clientIDSubCommand(c *client.Client, res *bytes.Buffer) {
+	res.Write(protocol.MakeInteger(c.ID))
 }
 
 // clientInfoSubCommand Returns information and statistics about the server.
-func clientInfoSubCommand(c *client.Client) {
+func clientInfoSubCommand(c *client.Client, res *bytes.Buffer) {
 	var s string
 
 	s += "id=" + strconv.FormatInt(c.ID, 10)
@@ -150,11 +150,11 @@ func clientInfoSubCommand(c *client.Client) {
 	s += " age=" + strconv.FormatInt(time.Now().Unix()-c.CreateTime.Unix(), 10)
 	s += " flags=" + c.Flags.String()
 
-	c.Conn.AsyncWrite(protocol.MakeBulkString(s))
+	res.Write(protocol.MakeBulkString(s))
 }
 
 // clientListSubCommand Returns the list of client connections.
-func clientListSubCommand(c *client.Client) {
+func clientListSubCommand(c *client.Client, res *bytes.Buffer) {
 	var clientss []string
 
 	server.clients.Range(func(key, value any) bool {
@@ -171,14 +171,14 @@ func clientListSubCommand(c *client.Client) {
 		return true
 	})
 
-	c.Conn.AsyncWrite(protocol.MakeBulkString(strings.Join(clientss, "")))
+	res.Write(protocol.MakeBulkString(strings.Join(clientss, "")))
 }
 
 // clientKillSubCommand Kills the connection of a client.
-func clientKillSubCommand(c *client.Client) {
+func clientKillSubCommand(c *client.Client, res *bytes.Buffer) {
 
 	if c.Argc < 2 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'kill' subcommand for 'client' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'kill' subcommand for 'client' command"))
 		return
 	}
 
@@ -188,51 +188,51 @@ func clientKillSubCommand(c *client.Client) {
 	if bytes.Equal(filter, []byte("id")) {
 		id, err := strconv.ParseInt(string(c.Argv[2]), 10, 64)
 		if err != nil {
-			c.Conn.AsyncWrite(NewGenericError("invalid argument for 'kill' subcommand for 'client' command"))
+			res.Write(NewGenericError("invalid argument for 'kill' subcommand for 'client' command"))
 			return
 		}
 
 		if id == c.ID {
-			c.Conn.AsyncWrite(protocol.MakeBool(false))
+			res.Write(protocol.MakeBool(false))
 			return
 		}
 
-		server.killClient(c, KillClientByID, id)
+		server.killClient(c, res, KillClientByID, id)
 	}
 
 	// Kill by the client remote address (addr:port)
 	if bytes.Equal(filter, []byte("address")) {
 		if bytes.Equal(c.Argv[2], []byte(c.Conn.RemoteAddr().String())) {
-			c.Conn.AsyncWrite(protocol.MakeBool(false))
+			res.Write(protocol.MakeBool(false))
 			return
 		}
 
-		server.killClient(c, KillClientByAddr, string(c.Argv[2]))
+		server.killClient(c, res, KillClientByAddr, string(c.Argv[2]))
 	}
 
 	// Kill by the client name
 	if bytes.Equal(filter, []byte("user")) {
 		if bytes.Equal(c.Argv[2], []byte(c.Name)) {
-			c.Conn.AsyncWrite(protocol.MakeBool(false))
+			res.Write(protocol.MakeBool(false))
 			return
 		}
 
-		server.killClient(c, KillClientByName, string(c.Argv[2]))
+		server.killClient(c, res, KillClientByName, string(c.Argv[2]))
 	}
 }
 
 // clientSetNameSubCommand Sets the name of the client.
-func clientSetNameSubCommand(c *client.Client) {
+func clientSetNameSubCommand(c *client.Client, res *bytes.Buffer) {
 	if c.Argc < 2 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'setname' subcommand for 'client' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'setname' subcommand for 'client' command"))
 		return
 	}
 
 	c.Name = string(c.Argv[1])
-	c.Conn.AsyncWrite(protocol.MakeSimpleString("OK"))
+	res.Write(protocol.MakeSimpleString("OK"))
 }
 
 // clientGetNameSubCommand Returns the name of the client.
-func clientGetNameSubCommand(c *client.Client) {
-	c.Conn.AsyncWrite(protocol.MakeBulkString(c.Name))
+func clientGetNameSubCommand(c *client.Client, res *bytes.Buffer) {
+	res.Write(protocol.MakeBulkString(c.Name))
 }

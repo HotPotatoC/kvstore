@@ -21,7 +21,7 @@ type Command struct {
 }
 
 // Proc is the command processor
-type Proc func(client *client.Client)
+type Proc func(client *client.Client, res *bytes.Buffer)
 
 // Type is the command type (read, write, etc)
 type Type uint8

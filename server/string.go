@@ -11,9 +11,9 @@ import (
 )
 
 // getCommand gets the value of a key in the database
-func getCommand(c *client.Client) {
+func getCommand(c *client.Client, res *bytes.Buffer) {
 	if c.Argc != 1 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'get' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'get' command"))
 		return
 	}
 
@@ -21,17 +21,17 @@ func getCommand(c *client.Client) {
 
 	v, ok := c.DB.Get(key)
 	if !ok {
-		c.Conn.AsyncWrite(protocol.MakeNull())
+		res.Write(protocol.MakeNull())
 		return
 	}
 
-	c.Conn.AsyncWrite(protocol.MakeBulkString(v.Data.(string)))
+	res.Write(protocol.MakeBulkString(v.Data.(string)))
 }
 
 // setCommand sets the value of a key in the database
-func setCommand(c *client.Client) {
+func setCommand(c *client.Client, res *bytes.Buffer) {
 	if c.Argc < 2 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'set' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'set' command"))
 		return
 	}
 
@@ -43,13 +43,13 @@ func setCommand(c *client.Client) {
 		switch {
 		case (option == "ex" || option == "px"): // set expire time
 			if c.Argc != 4 {
-				c.Conn.AsyncWrite(NewGenericError("syntax error"))
+				res.Write(NewGenericError("syntax error"))
 				return
 			}
 
 			n, err := common.ByteToInt(c.Argv[3])
 			if err != nil {
-				c.Conn.AsyncWrite(NewGenericError("syntax error"))
+				res.Write(NewGenericError("syntax error"))
 				return
 			}
 
@@ -62,22 +62,22 @@ func setCommand(c *client.Client) {
 			}
 		case option == "nx": // set only if key does not exist
 			if c.Argc != 3 {
-				c.Conn.AsyncWrite(NewGenericError("syntax error"))
+				res.Write(NewGenericError("syntax error"))
 				return
 			}
 
 			if c.DB.Exists(key) {
-				c.Conn.AsyncWrite(protocol.MakeNull())
+				res.Write(protocol.MakeNull())
 				return
 			}
 		case option == "xx": // set only if key exists
 			if c.Argc != 3 {
-				c.Conn.AsyncWrite(NewGenericError("syntax error"))
+				res.Write(NewGenericError("syntax error"))
 				return
 			}
 
 			if !c.DB.Exists(key) {
-				c.Conn.AsyncWrite(protocol.MakeNull())
+				res.Write(protocol.MakeNull())
 				return
 			}
 		}
@@ -85,13 +85,13 @@ func setCommand(c *client.Client) {
 
 	c.DB.Store(datastructure.NewItem(key, value, expiry))
 
-	c.Conn.AsyncWrite(protocol.MakeSimpleString("OK"))
+	res.Write(protocol.MakeSimpleString("OK"))
 }
 
 // delCommand deletes a key from the database
-func delCommand(c *client.Client) {
+func delCommand(c *client.Client, res *bytes.Buffer) {
 	if c.Argc != 1 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'del' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'del' command"))
 		return
 	}
 
@@ -99,13 +99,13 @@ func delCommand(c *client.Client) {
 
 	n := c.DB.Delete(key)
 
-	c.Conn.AsyncWrite(protocol.MakeInteger(n))
+	res.Write(protocol.MakeInteger(n))
 }
 
 // keysCommand returns all keys in the database
-func keysCommand(c *client.Client) {
+func keysCommand(c *client.Client, res *bytes.Buffer) {
 	if c.Argc != 1 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'keys' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'keys' command"))
 		return
 	}
 
@@ -125,5 +125,5 @@ func keysCommand(c *client.Client) {
 		keys = append(keys, protocol.MakeBulkString(k))
 	}
 
-	c.Conn.AsyncWrite(protocol.MakeArray(keys...))
+	res.Write(protocol.MakeArray(keys...))
 }

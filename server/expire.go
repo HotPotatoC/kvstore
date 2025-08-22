@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
@@ -16,45 +17,45 @@ const (
 	unitMilliseconds
 )
 
-func expireGenericCommand(c *client.Client, u unit) {
+func expireGenericCommand(c *client.Client, res *bytes.Buffer, u unit) {
 	if c.Argc < 2 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for '" + c.Command + "' command"))
+		res.Write(NewGenericError("wrong number of arguments for '" + c.Command + "' command"))
 		return
 	}
 
 	key := string(c.Argv[0])
 	n, err := common.ByteToInt(c.Argv[1])
 	if err != nil {
-		c.Conn.AsyncWrite(NewGenericError("invalid expire time"))
+		res.Write(NewGenericError("invalid expire time"))
 		return
 	}
 
-	var res int64
+	var result int64
 	if u == unitSeconds {
-		res = c.DB.Expire(key, time.Duration(n)*time.Second)
+		result = c.DB.Expire(key, time.Duration(n)*time.Second)
 	}
 	if u == unitMilliseconds {
-		res = c.DB.Expire(key, time.Duration(n)*time.Millisecond)
+		result = c.DB.Expire(key, time.Duration(n)*time.Millisecond)
 	}
 
-	if res == 0 {
-		c.Conn.AsyncWrite(protocol.MakeInteger(0))
+	if result == 0 {
+		res.Write(protocol.MakeInteger(0))
 	} else {
-		c.Conn.AsyncWrite(protocol.MakeInteger(1))
+		res.Write(protocol.MakeInteger(1))
 	}
 }
 
-func expireCommand(c *client.Client) {
-	expireGenericCommand(c, unitSeconds)
+func expireCommand(c *client.Client, res *bytes.Buffer) {
+	expireGenericCommand(c, res, unitSeconds)
 }
 
-func pexpireCommand(c *client.Client) {
-	expireGenericCommand(c, unitMilliseconds)
+func pexpireCommand(c *client.Client, res *bytes.Buffer) {
+	expireGenericCommand(c, res, unitMilliseconds)
 }
 
-func ttlGenericCommand(c *client.Client, u unit) {
+func ttlGenericCommand(c *client.Client, res *bytes.Buffer, u unit) {
 	if c.Argc != 1 {
-		c.Conn.AsyncWrite(NewGenericError("wrong number of arguments for 'ttl' command"))
+		res.Write(NewGenericError("wrong number of arguments for 'ttl' command"))
 		return
 	}
 
@@ -62,28 +63,29 @@ func ttlGenericCommand(c *client.Client, u unit) {
 
 	item, ok := c.DB.Get(key)
 	if !ok {
-		c.Conn.AsyncWrite(protocol.MakeInteger(-2))
+		res.Write(protocol.MakeInteger(-2))
 		return
 	}
 
 	// If the item does not expire, -1 is returned.
 	if item.HasFlag(datastructure.ItemFlagExpireNX) {
-		c.Conn.AsyncWrite(protocol.MakeInteger(-1))
+		res.Write(protocol.MakeInteger(-1))
 		return
 	}
 
 	leftToLive := time.Until(item.ExpiresAt)
 	if u == unitSeconds {
-		c.Conn.AsyncWrite(protocol.MakeInteger(int64(leftToLive / time.Second)))
+		res.Write(protocol.MakeInteger(int64(leftToLive / time.Second)))
 	}
 	if u == unitMilliseconds {
-		c.Conn.AsyncWrite(protocol.MakeInteger(int64(leftToLive / time.Millisecond)))
+		res.Write(protocol.MakeInteger(int64(leftToLive / time.Millisecond)))
 	}
 }
 
-func ttlCommand(c *client.Client) {
-	ttlGenericCommand(c, unitSeconds)
+func ttlCommand(c *client.Client, res *bytes.Buffer) {
+	ttlGenericCommand(c, res, unitSeconds)
 }
-func pttlCommand(c *client.Client) {
-	ttlGenericCommand(c, unitMilliseconds)
+
+func pttlCommand(c *client.Client, res *bytes.Buffer) {
+	ttlGenericCommand(c, res, unitMilliseconds)
 }

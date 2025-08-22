@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -17,8 +18,8 @@ import (
 	"github.com/HotPotatoC/kvstore-rewrite/disk"
 	"github.com/HotPotatoC/kvstore-rewrite/logger"
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
-	"github.com/panjf2000/gnet"
-	"github.com/panjf2000/gnet/pool/goroutine"
+	"github.com/panjf2000/gnet/v2"
+	"github.com/panjf2000/gnet/v2/pkg/pool/goroutine"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -52,7 +53,8 @@ type Server struct {
 	// nextClientID is the next monotonically increasing client ID.
 	nextClientID int64
 
-	*gnet.EventServer
+	*gnet.BuiltinEventEngine
+	eng        gnet.Engine
 	wg         sync.WaitGroup
 	parserPool sync.Pool
 }
@@ -220,28 +222,15 @@ func (s *Server) Stop() {
 	s.pool.Release()
 
 	for _, addr := range viper.GetStringSlice("server.addrs") {
-		if err := gnet.Stop(context.Background(), fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port"))); err != nil {
+		if err := s.eng.Stop(context.Background()); err != nil {
 			logger.S().Error("failed to stop server", zap.String("addr", addr), err)
 		}
 	}
 }
 
-// React (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.React)
-func (s *Server) React(frame []byte, c gnet.Conn) (out []byte, action gnet.Action) {
-	data := append([]byte{}, frame...)
-	c.ResetBuffer()
+func (s *Server) OnBoot(eng gnet.Engine) (action gnet.Action) {
+	s.eng = eng
 
-	err := s.pool.Submit(func() {
-		s.handle(data, c)
-	})
-	if err != nil {
-		logger.S().Error(err)
-	}
-	return
-}
-
-// OnInitComplete (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnInitComplete)
-func (s *Server) OnInitComplete(svr gnet.Server) (action gnet.Action) {
 	fmt.Println()
 	fmt.Printf("kvstore %s (%d-Bit)\n", build.Version, 8*int(unsafe.Sizeof(int(0))))
 	fmt.Printf("Port: %d\n", viper.GetInt("server.port"))
@@ -251,32 +240,29 @@ func (s *Server) OnInitComplete(svr gnet.Server) (action gnet.Action) {
 	return
 }
 
-// OnOpened (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnOpened)
-func (s *Server) OnOpened(conn gnet.Conn) (out []byte, action gnet.Action) {
-	logger.S().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
-
-	s.clients.Store(conn.RemoteAddr().String(), &client.Client{
+func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
+	client := &client.Client{
 		ID:         atomic.AddInt64(&s.nextClientID, 1),
 		Flags:      client.FlagNone,
 		Conn:       conn,
 		DB:         s.DB,
 		KVSDB:      s.kvsDB,
 		CreateTime: time.Now(),
-	})
+	}
 
+	s.clients.Store(conn.RemoteAddr().String(), client)
+	logger.S().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
 	return
 }
 
-// OnClosed (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnClosed)
-func (s *Server) OnClosed(conn gnet.Conn, err error) (action gnet.Action) {
+func (s *Server) OnClose(conn gnet.Conn, err error) (action gnet.Action) {
 	logger.S().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
 
 	s.clients.Delete(conn.RemoteAddr().String())
 	return
 }
 
-// OnShutdown (see gnet docs: https://pkg.go.dev/github.com/panjf2000/gnet#EventServer.OnShutdown)
-func (s *Server) OnShutdown(svr gnet.Server) {
+func (s *Server) OnShutdown(svr gnet.Engine) {
 	if err := s.kvsDB.Write(s.DB); err != nil {
 		logger.S().Warn("failed saving db: ", err)
 	}
@@ -289,11 +275,37 @@ func (s *Server) OnShutdown(svr gnet.Server) {
 	logger.S().Info("server has been shut down")
 }
 
+func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
+	size := c.InboundBuffered()
+	if size == 0 {
+		return gnet.None
+	}
+
+	data, err := c.Peek(size)
+	if err != nil {
+		return gnet.Close
+	}
+
+	// Make a copy of the data to own it in the worker goroutine.
+	dataCopy := make([]byte, size)
+	copy(dataCopy, data)
+	c.Discard(size)
+
+	err = s.pool.Submit(func() {
+		s.handle(dataCopy, c)
+	})
+	if err != nil {
+		logger.S().Error("failed to submit task to pool: ", err)
+	}
+
+	return gnet.None
+}
+
 // bindToAddress binds the server to the given address.
 func (s *Server) bindToAddress(addr string) {
 	logger.S().Debug("Binding to address: ", fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port")))
 	go func(addr string) {
-		if err := gnet.Serve(s, fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port"))); err != nil {
+		if err := gnet.Run(s, fmt.Sprintf("%s:%d", addr, viper.GetInt("server.port"))); err != nil {
 			logger.S().Errorf("Failed to bind to address %s: %s", addr, err)
 			s.wg.Done()
 			os.Exit(1)
@@ -304,97 +316,103 @@ func (s *Server) bindToAddress(addr string) {
 
 // handle handles client requests.
 func (s *Server) handle(data []byte, conn gnet.Conn) {
-	recvCmd, recvArgv := s.parseObject(data)
+	p := s.parserPool.Get().(*parser)
+	defer s.parserPool.Put(p)
+	p.br.Reset(data)
+	p.pr.Reset(p.br)
 
-	cmd, ok := CommandTable[string(recvCmd)]
+	// A buffer to accumulate all responses for the pipeline.
+	var responseBuffer bytes.Buffer
+
+	for {
+		obj, err := p.pr.ReadObject()
+		if err != nil {
+			if err != io.EOF {
+				// A real syntax error in the middle of a pipeline.
+				responseBuffer.Write(protocol.MakeError("ERR protocol error: " + err.Error()))
+			}
+			break
+		}
+
+		s.processCommand(obj, conn, &responseBuffer)
+	}
+
+	// write the entire batch of responses.
+	if responseBuffer.Len() > 0 {
+		conn.AsyncWrite(responseBuffer.Bytes(), nil)
+	}
+}
+func (s *Server) processCommand(obj any, conn gnet.Conn, responseBuffer *bytes.Buffer) {
+	v, ok := s.clients.Load(conn.RemoteAddr().String())
 	if !ok {
-		conn.AsyncWrite(NewGenericError("unknown command '" + string(recvCmd) + "'"))
+		return
+	}
+
+	rawCmd, ok := obj.([]any)
+	if !ok || len(rawCmd) == 0 {
+		responseBuffer.Write(protocol.MakeError("ERR malformed command"))
+		return
+	}
+	recvCmdBytes := bytes.ToLower(rawCmd[0].([]byte))
+	rawRecvArgv := rawCmd[1:]
+	recvArgv := make([][]byte, len(rawRecvArgv))
+	for i, v := range rawRecvArgv {
+		recvArgv[i] = v.([]byte)
+	}
+
+	cmd, ok := CommandTable[string(recvCmdBytes)]
+	if !ok {
+		responseBuffer.Write(protocol.MakeError(fmt.Sprintf("ERR unknown command '%s'", recvCmdBytes)))
 		return
 	}
 
 	if cmd.SubCommands != nil {
 		if len(recvArgv) == 0 {
-			conn.AsyncWrite(NewGenericError("wrong number of arguments for '" + string(recvCmd) + "' command"))
+			responseBuffer.Write(protocol.MakeError(fmt.Sprintf("ERR wrong number of arguments for '%s' command", recvCmdBytes)))
 			return
 		}
 
-		subCmd, ok := cmd.SubCommands[string(recvArgv[0])]
+		subCmdStr := string(bytes.ToLower(recvArgv[0]))
+		subCmd, ok := cmd.SubCommands[subCmdStr]
 		if !ok {
-			conn.AsyncWrite(NewGenericError("unknown subcommand '" + string(recvArgv[0]) + "' for '" + string(recvCmd) + "' command"))
+			responseBuffer.Write(protocol.MakeError(fmt.Sprintf("ERR unknown subcommand '%s' for '%s' command", subCmdStr, recvCmdBytes)))
 			return
 		}
-
 		cmd = subCmd
 	}
-
-	v, _ := s.clients.Load(conn.RemoteAddr().String())
 
 	c := v.(*client.Client)
 	c.Command = cmd.Name
 	c.Argv = recvArgv
 	c.Argc = len(recvArgv)
 
-	// mark the client as busy
 	c.RemoveFlag(client.FlagNone)
 	c.AddFlag(client.FlagBusy)
 
-	cmd.Proc(c)
-	s.afterCommand(c)
-}
-
-// parseObject parses the resp3 object sent by the client.
-// returns the command and the arguments.
-func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
-	p := s.parserPool.Get().(*parser)
-	defer s.parserPool.Put(p)
-
-	p.br.Reset(data)
-	p.pr.Reset(p.br)
-
-	obj, err := p.pr.ReadObject()
-	if err != nil {
-		logger.S().Error(err)
-		return nil, nil
-	}
-
-	recv := obj.([]any)
-
-	cmd := bytes.ToLower(recv[0].([]byte))
-	rawRecvArgv := recv[1:]
-
-	argv := make([][]byte, len(rawRecvArgv))
-	for i, v := range rawRecvArgv {
-		argv[i] = v.([]byte)
-	}
-
-	// Wrap args if it starts with a quote
-	if len(argv) > 0 && argv[0][0] == '"' {
-		argv = command.WrapArgsFromQuotes(argv)
-	}
-
-	return cmd, argv
+	cmd.Proc(c, responseBuffer)
+	s.afterCommand(c, responseBuffer)
 }
 
 // pingCommand handles ping command.
-func pingCommand(c *client.Client) {
-	c.Conn.AsyncWrite(protocol.MakeSimpleString("PONG"))
+func pingCommand(c *client.Client, res *bytes.Buffer) {
+	res.Write(protocol.MakeSimpleString("PONG"))
 }
 
 // flushallCommand clears all keys and values from the database.
 // Also, it clears the database from disk.
-func flushallCommand(c *client.Client) {
+func flushallCommand(c *client.Client, res *bytes.Buffer) {
 	n := c.DB.Clear()
 	if err := c.KVSDB.Clear(); err != nil {
-		c.Conn.AsyncWrite(NewGenericError(err.Error()))
+		res.Write(NewGenericError(err.Error()))
 	}
 
 	logger.S().Info("DB saved on disk")
 
-	c.Conn.AsyncWrite(protocol.MakeInteger(n))
+	res.Write(protocol.MakeInteger(n))
 }
 
 // commandCommand sends all registered commands to the client.
 // TODO: implement this.
-func commandCommand(c *client.Client) {
-	c.Conn.AsyncWrite(protocol.MakeError("NOT_IMPLEMENTED"))
+func commandCommand(c *client.Client, res *bytes.Buffer) {
+	res.Write(protocol.MakeError("NOT_IMPLEMENTED"))
 }
