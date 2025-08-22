@@ -23,6 +23,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type parser struct {
+	br *bytes.Reader
+	pr *protocol.Reader
+}
+
 // Server is the main server struct.
 type Server struct {
 	// PID of the server process.
@@ -48,7 +53,8 @@ type Server struct {
 	nextClientID int64
 
 	*gnet.EventServer
-	wg sync.WaitGroup
+	wg         sync.WaitGroup
+	parserPool sync.Pool
 }
 
 // server is the global server variable.
@@ -178,6 +184,14 @@ func New() (*Server, error) {
 		DB:    db,
 		kvsDB: kvsDB,
 		pool:  goroutine.Default(),
+	}
+
+	server.parserPool.New = func() any {
+		br := bytes.NewReader(nil)
+		return &parser{
+			br: br,
+			pr: protocol.NewReader(br),
+		}
 	}
 
 	return server, nil
@@ -331,9 +345,13 @@ func (s *Server) handle(data []byte, conn gnet.Conn) {
 // parseObject parses the resp3 object sent by the client.
 // returns the command and the arguments.
 func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
-	reader := protocol.NewReader(bytes.NewReader(data))
-	// TODO: Once generics are released, we should use it here.
-	obj, err := reader.ReadObject()
+	p := s.parserPool.Get().(*parser)
+	defer s.parserPool.Put(p)
+
+	p.br.Reset(data)
+	p.pr.Reset(p.br)
+
+	obj, err := p.pr.ReadObject()
 	if err != nil {
 		logger.S().Error(err)
 		return nil, nil
@@ -341,19 +359,20 @@ func (s *Server) parseObject(data []byte) ([]byte, [][]byte) {
 
 	recv := obj.([]any)
 
-	recvCmd, rawRecvArgv := bytes.ToLower(recv[0].([]byte)), recv[1:]
+	cmd := bytes.ToLower(recv[0].([]byte))
+	rawRecvArgv := recv[1:]
 
-	var recvArgv [][]byte
-	for _, v := range rawRecvArgv {
-		recvArgv = append(recvArgv, v.([]byte))
+	argv := make([][]byte, len(rawRecvArgv))
+	for i, v := range rawRecvArgv {
+		argv[i] = v.([]byte)
 	}
 
 	// Wrap args if it starts with a quote
-	if len(recvArgv) > 0 && recvArgv[0][0] == '"' {
-		recvArgv = command.WrapArgsFromQuotes(recvArgv)
+	if len(argv) > 0 && argv[0][0] == '"' {
+		argv = command.WrapArgsFromQuotes(argv)
 	}
 
-	return recvCmd, recvArgv
+	return cmd, argv
 }
 
 // pingCommand handles ping command.

@@ -29,6 +29,10 @@ func NewReader(r io.Reader) *Reader {
 		buf: make([]byte, 0, 64*1024),
 	}
 }
+func (r *Reader) Reset(rd io.Reader) {
+	r.br.Reset(rd)
+	r.buf = r.buf[:0]
+}
 
 // ReadObject reads an object from the reader.
 func (r *Reader) ReadObject() (any, error) {
