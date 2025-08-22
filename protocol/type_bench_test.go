@@ -1,67 +1,114 @@
 package protocol_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
 )
 
 func BenchmarkWriter_MakeCommand(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeCommand("PING")
+	benchmarks := []struct {
+		name string
+		args []string
+	}{
+		{"Simple_PING", []string{"PING"}},
+		{"Simple_SET", []string{"SET", "key", "value"}},
+		{"Complex_MSET", []string{"MSET", "key1", "value1", "key2", "value2", "key3", "value3"}},
 	}
-}
 
-func BenchmarkWriter_MakeCommand_With_Arguments(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeCommand("SET", "key", "value")
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs() // Crucial for seeing the effect of pre-allocation
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				protocol.MakeCommand(bm.args...)
+			}
+		})
 	}
 }
 
 func BenchmarkWriter_MakeSimpleString(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		protocol.MakeSimpleString("PONG")
 	}
 }
 
 func BenchmarkWriter_MakeError(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		protocol.MakeError("ERR unknown command 'foobar'")
 	}
 }
 
-func BenchmarkWriter_MakeInteger_123(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeInteger(123)
+func BenchmarkWriter_MakeInteger(b *testing.B) {
+	benchmarks := []struct {
+		name  string
+		value int64
+	}{
+		{"Small", 123},
+		{"Medium", 123456},
+		{"Large", 123456789123456},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				protocol.MakeInteger(bm.value)
+			}
+		})
 	}
 }
 
-func BenchmarkWriter_MakeInteger_123456(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeInteger(123456)
-	}
-}
-
-func BenchmarkWriter_MakeInteger_123456789(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeInteger(123456789)
-	}
-}
-
-func BenchmarkWriter_MakeBool_True(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeBool(true)
-	}
-}
-
-func BenchmarkWriter_MakeBool_False(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		protocol.MakeBool(false)
-	}
+func BenchmarkWriter_MakeBool(b *testing.B) {
+	b.Run("True", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			protocol.MakeBool(true)
+		}
+	})
+	b.Run("False", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			protocol.MakeBool(false)
+		}
+	})
 }
 
 func BenchmarkWriter_MakeBulkString(b *testing.B) {
+	benchmarks := []struct {
+		name string
+		size int
+	}{
+		{"Small_32B", 32},
+		{"Medium_4KB", 4 * 1024},
+		{"Large_256KB", 256 * 1024},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			// Prepare the payload outside the timed loop
+			payload := strings.Repeat("a", bm.size)
+
+			b.ReportAllocs()
+			b.SetBytes(int64(len(payload))) // This will report MB/s throughput
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				protocol.MakeBulkString(payload)
+			}
+		})
+	}
+}
+
+// You can add a benchmark for MakeNull if you want, but it will
+// likely be too fast to measure accurately since it's just returning a constant.
+func BenchmarkWriter_MakeNull(b *testing.B) {
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		protocol.MakeBulkString("PONG")
+		protocol.MakeNull()
 	}
 }

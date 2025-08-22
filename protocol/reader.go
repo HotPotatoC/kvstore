@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 )
@@ -17,12 +18,16 @@ var (
 
 // Reader is a protocol reader.
 type Reader struct {
-	br *bufio.Reader
+	br  *bufio.Reader
+	buf []byte
 }
 
 // NewReader returns a new protocol reader.
 func NewReader(r io.Reader) *Reader {
-	return &Reader{br: bufio.NewReader(r)}
+	return &Reader{
+		br:  bufio.NewReader(r),
+		buf: make([]byte, 0, 64*1024),
+	}
 }
 
 // ReadObject reads an object from the reader.
@@ -36,48 +41,72 @@ func (r *Reader) ReadObject() (any, error) {
 	switch line[0] {
 	case SimpleString, Error:
 		// Avoid allocation for frequent "+OK" and "+PONG"
-		if string(line[1:]) == "OK" {
+		val := line[1:]
+		if bytes.Equal(val, []byte("OK")) {
 			return "OK", nil
 		}
-		if string(line[1:]) == "PONG" {
+		if bytes.Equal(val, []byte("PONG")) {
 			return "PONG", nil
 		}
 
-		return string(line[1:]), nil
+		return string(val), nil
 	case Integer:
 		return r.parseInt(line[1:])
 	case BulkString:
 		n, err := r.parseLen(line[1:])
-		if n < 0 || err != nil {
-			return nil, err
-		}
-		p := make([]byte, n)
-		_, err = io.ReadFull(r.br, p)
 		if err != nil {
 			return nil, err
 		}
-		if line, err := r.readLine(); err != nil {
+		if n < 0 {
+			return nil, nil // Nil bulk string
+		}
+
+		// Read data and trailing CRLF into the reusable buffer
+		totalLen := n + 2
+		if cap(r.buf) < totalLen {
+			r.buf = make([]byte, totalLen)
+		} else {
+			r.buf = r.buf[:totalLen]
+		}
+
+		if _, err = io.ReadFull(r.br, r.buf); err != nil {
 			return nil, err
-		} else if len(line) != 0 {
+		}
+
+		if r.buf[n] != '\r' || r.buf[n+1] != '\n' {
 			return nil, ErrInvalidSyntax
 		}
 
-		return p, nil
+		return r.buf[:n], nil
 	case Array:
-		len, err := r.parseLen(line[1:])
+		n, err := r.parseLen(line[1:])
 		if err != nil {
 			return nil, err
 		}
 
-		if len == -1 {
+		if n == -1 {
 			return nil, nil
 		}
 
-		result := make([]any, len)
-		for i := 0; i < len; i++ {
-			result[i], err = r.ReadObject()
+		result := make([]any, n)
+		var dataBuf bytes.Buffer
+		for i := 0; i < n; i++ {
+			// Read the next object in the array
+			obj, err := r.ReadObject()
 			if err != nil {
 				return nil, err
+			}
+
+			if val, ok := obj.([]byte); ok {
+				// Get the current position in the buffer, which is the start of our new slice.
+				start := dataBuf.Len()
+				// Append the data from the temporary read buffer into our persistent array buffer.
+				dataBuf.Write(val)
+				// Store a slice that points to the data we just wrote inside dataBuf.
+				result[i] = dataBuf.Bytes()[start:]
+			} else {
+				// For other types (int, string, nil), no copy is needed.
+				result[i] = obj
 			}
 		}
 
@@ -93,7 +122,8 @@ func (r *Reader) readLine() ([]byte, error) {
 	// Reference: https://github.com/gomodule/redigo/blob/master/redis/conn.go#L543
 	p, err := r.br.ReadSlice('\n')
 	if errors.Is(err, bufio.ErrBufferFull) {
-		buf := append([]byte{}, p...)
+		buf := make([]byte, len(p), len(p)*2)
+		copy(buf, p)
 
 		for err == bufio.ErrBufferFull {
 			p, err = r.br.ReadSlice('\n')
