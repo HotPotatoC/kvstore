@@ -23,8 +23,25 @@ Current available commands are:
 - `DEL key`
 - `KEYS pattern`
 - `PING`
+- `ECHO value`
 - `FLUSHALL`
 - `CLIENT [ID | INFO | LIST | KILL <id | addr | user> <value> | GETNAME | SETNAME <name>]`
+
+The server defaults to four event loops. Each traffic callback yields after
+64 commands or after response data reaches 64 KiB. One large response can exceed
+that callback budget; the pending-output limit remains a hard cap. `server.loops`,
+`server.command_budget`, and `server.output_budget` configure these limits.
+
+`server.max_pending_input` and `server.max_pending_output` default to 16 MiB per
+connection. Connections exceeding either pending-byte limit are closed. Commands
+accept at most 1,024 bulk arguments, each at most 8 MiB, and a 16 MiB total frame.
+Incomplete frames remain buffered until more input arrives.
+
+KEYS, pattern DEL, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
+(default four), with `server.worker_queue` queued commands (default 16). One slow
+command runs per connection; later commands wait for its response. Saturation
+returns `ERR server overloaded` for that command. Responses exceeding the output
+limit return an error or close the connection.
 
 ## To Do
 

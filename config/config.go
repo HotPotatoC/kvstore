@@ -17,8 +17,15 @@ const (
 // Defaults is the default configuration values and
 // is used when a configuration file was not found
 var Defaults = map[string]any{
-	"server.port":  7275,
-	"server.addrs": []string{"tcp://127.0.0.1"},
+	"server.port":               7275,
+	"server.loops":              4,
+	"server.command_budget":     64,
+	"server.output_budget":      64 << 10,
+	"server.max_pending_input":  16 << 20,
+	"server.max_pending_output": 16 << 20,
+	"server.workers":            4,
+	"server.worker_queue":       16,
+	"server.addrs":              []string{"tcp://127.0.0.1"},
 
 	"database.path": "./dump.kvsdb",
 

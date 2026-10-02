@@ -4,6 +4,13 @@
 [server]
 addrs = ["tcp://127.0.0.1"]
 port = 7275
+loops = 4
+command_budget = 64
+output_budget = 65536
+max_pending_input = 16777216
+max_pending_output = 16777216
+workers = 4
+worker_queue = 16
 
 [database]
 path = "./dump.kvsdb"

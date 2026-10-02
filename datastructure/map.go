@@ -44,13 +44,37 @@ func shardIndex(k string) uint32 {
 
 // Store stores a new key-value pair.
 func (m *Map) Store(v *Item) {
+	m.store(v, false, false)
+}
+
+// StoreIfAbsent stores the item only if its key is absent or expired.
+func (m *Map) StoreIfAbsent(v *Item) bool {
+	return m.store(v, true, false)
+}
+
+// StoreIfPresent replaces the item only if its key exists and is not expired.
+func (m *Map) StoreIfPresent(v *Item) bool {
+	return m.store(v, false, true)
+}
+
+func (m *Map) store(v *Item, onlyAbsent, onlyPresent bool) bool {
 	s := &m.shards[shardIndex(v.Key)]
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	previous, exists := s.items[v.Key]
+	if exists && previous.HasFlag(ItemFlagExpireXX) && time.Now().After(previous.ExpiresAt) {
+		delete(s.items, v.Key)
+		delete(s.ttlKeys, v.Key)
+		m.nSize.Add(-1)
+		exists = false
+	}
+	if (onlyAbsent && exists) || (onlyPresent && !exists) {
+		return false
+	}
 	if s.items == nil {
 		s.items = make(map[string]*Item)
 	}
-	if _, exists := s.items[v.Key]; !exists {
+	if !exists {
 		m.nSize.Add(1)
 	}
 	s.items[v.Key] = v
@@ -62,6 +86,7 @@ func (m *Map) Store(v *Item) {
 	} else {
 		delete(s.ttlKeys, v.Key)
 	}
+	return true
 }
 
 // Expire sets the expiration time of the key.

@@ -1,9 +1,11 @@
 package disk
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
 	"github.com/vmihailenco/msgpack/v5"
@@ -11,6 +13,7 @@ import (
 
 // KVSDB is for persisting data to disk.
 type KVSDB struct {
+	mu   sync.Mutex
 	file *os.File
 }
 
@@ -47,19 +50,28 @@ func OpenKVSDB(path ...string) (*KVSDB, error) {
 
 // Write writes the given data to the kvsDB.
 func (db *KVSDB) Write(data *datastructure.Map) error {
-	db.file.Seek(0, 0)
-	db.file.Truncate(0)
-	encoder := msgpack.NewEncoder(db.file)
+	db.mu.Lock()
+	defer db.mu.Unlock()
+	if _, err := db.file.Seek(0, 0); err != nil {
+		return err
+	}
+	if err := db.file.Truncate(0); err != nil {
+		return err
+	}
+	writer := bufio.NewWriterSize(db.file, 64*1024)
+	encoder := msgpack.NewEncoder(writer)
 	for _, item := range data.List() {
 		if err := encoder.Encode(item); err != nil {
 			return err
 		}
 	}
-	return nil
+	return writer.Flush()
 }
 
 // Read reads the given data from the kvsDB.
 func (db *KVSDB) Read() (*datastructure.Map, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	data := datastructure.NewMap()
 	decoder := msgpack.NewDecoder(db.file)
 	for {
@@ -77,10 +89,14 @@ func (db *KVSDB) Read() (*datastructure.Map, error) {
 
 // Clear clears the kvsDB.
 func (db *KVSDB) Clear() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	return db.file.Truncate(0)
 }
 
 // Close closes the kvsDB.
 func (db *KVSDB) Close() error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	return db.file.Close()
 }

@@ -3,11 +3,9 @@ package server
 import (
 	"bytes"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
-	"github.com/HotPotatoC/kvstore-rewrite/logger"
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
 )
 
@@ -26,76 +24,40 @@ const (
 // killClient kills the client with the given target ID or remote address (addr:port) or the name of the client.
 // After the client is killed, send either 0 (false) or 1 (true) to the client.
 func (s *Server) killClient(c *client.Client, res *bytes.Buffer, kct KillClientType, target any) {
-	nKilled := 0
-	switch kct {
-	// Kill by the client ID
-	case KillClientByID:
-		logger.S().Debug("Killing client with ID: ", target)
-		s.clients.Range(func(key, value any) bool {
-			targetClient := value.(*client.Client)
-			if targetClient.ID == target {
-				if targetClient.HasFlag(client.FlagBusy) {
-					// If the client is busy, mark it for close
-					targetClient.AddFlag(client.FlagCloseASAP)
-				} else {
-					// If the client is not busy, kill it immediately
-					targetClient.Conn.Close()
-					s.clients.Delete(key)
-					nKilled++
-				}
-				return false
-			}
+	killed := false
+	s.clients.Range(func(_ any, value any) bool {
+		targetClient := value.(*client.Client)
+		match := false
+		switch kct {
+		case KillClientByID:
+			match = targetClient.ID == target
+		case KillClientByAddr:
+			match = targetClient.RemoteAddr == target
+		case KillClientByName:
+			match = targetClient.Name() == target
+		}
+		if !match {
 			return true
-		})
-
-	// Kill by the client remote address (addr:port) or the client name
-	case KillClientByAddr:
-		logger.S().Debug("Killing client with IP address: ", target)
-		s.clients.Range(func(key, value any) bool {
-			targetClient := value.(*client.Client)
-			if targetClient.Conn.RemoteAddr().String() == target {
-				targetClient.Conn.Close()
-				s.clients.Delete(key)
-				nKilled++
-				return false
-			}
-			return true
-		})
-	// Kill by the client name
-	case KillClientByName:
-		logger.S().Debug("Killing client with name: ", target.(string))
-		s.clients.Range(func(key, value any) bool {
-			targetClient := value.(*client.Client)
-			if targetClient.Name == target {
-				targetClient.Conn.Close()
-				s.clients.Delete(key)
-				nKilled++
-				return false
-			}
-			return true
-		})
-	}
-
-	res.Write(protocol.MakeBool(nKilled > 0))
+		}
+		targetClient.AddFlag(client.FlagCloseASAP)
+		if targetClient.HasFlag(client.FlagBusy) {
+			targetClient.Conn.Wake(nil)
+		} else {
+			targetClient.Conn.Close()
+		}
+		killed = true
+		return false
+	})
+	res.Write(protocol.MakeBool(killed))
 }
 
-// afterCommand is called after a command is executed.
-// It reads the client flags and returns the client to the free state.
-// It also checks if the client is in the closing state and if so, it closes the connection.
-func (s *Server) afterCommand(c *client.Client, res *bytes.Buffer) {
-	// Clear the busy flag
+func (s *Server) afterCommand(c *client.Client, _ *bytes.Buffer) {
 	c.RemoveFlag(client.FlagBusy)
-	// Set the FlagNone flag
 	c.AddFlag(client.FlagNone)
-
-	if c.HasFlag(client.FlagCloseASAP) {
-		c.RemoveFlag(client.FlagCloseASAP)
-		s.killClient(c, res, KillClientByID, c.ID)
-	}
 }
 
 // clientCommand is a command that handles client commands.
-func clientCommand(c *client.Client, res *bytes.Buffer) {
+func (s *Server) clientCommand(c *client.Client, res *bytes.Buffer) {
 	subCmd := bytes.ToLower(c.Argv[0])
 
 	// id sub-command
@@ -112,13 +74,13 @@ func clientCommand(c *client.Client, res *bytes.Buffer) {
 
 	// list sub-command
 	if bytes.Equal(subCmd, []byte("list")) {
-		clientListSubCommand(c, res)
+		s.clientListSubCommand(c, res)
 		return
 	}
 
 	// kill sub-command
 	if bytes.Equal(subCmd, []byte("kill")) {
-		clientKillSubCommand(c, res)
+		s.clientKillSubCommand(c, res)
 		return
 	}
 
@@ -145,39 +107,48 @@ func clientInfoSubCommand(c *client.Client, res *bytes.Buffer) {
 	var s string
 
 	s += "id=" + strconv.FormatInt(c.ID, 10)
-	s += " addr=" + c.Conn.RemoteAddr().String()
-	s += " name=" + c.Name
+	s += " addr=" + c.RemoteAddr
+	s += " name=" + c.Name()
 	s += " age=" + strconv.FormatInt(time.Now().Unix()-c.CreateTime.Unix(), 10)
-	s += " flags=" + c.Flags.String()
+	s += " flags=" + c.FlagsString()
 
 	protocol.WriteBulkString(res, s)
 }
 
 // clientListSubCommand Returns the list of client connections.
-func clientListSubCommand(c *client.Client, res *bytes.Buffer) {
-	var clientss []string
+func (s *Server) clientListSubCommand(c *client.Client, res *bytes.Buffer) {
+	var list bytes.Buffer
+	tooLarge := false
 
-	server.clients.Range(func(key, value any) bool {
+	s.clients.Range(func(key, value any) bool {
 		client := value.(*client.Client)
 		var ss string
 		ss += "id=" + strconv.FormatInt(client.ID, 10)
-		ss += " addr=" + client.Conn.RemoteAddr().String()
-		ss += " name=" + client.Name
+		ss += " addr=" + client.RemoteAddr
+		ss += " name=" + client.Name()
 		ss += " age=" + strconv.FormatInt(time.Now().Unix()-client.CreateTime.Unix(), 10)
-		ss += " flags=" + client.Flags.String()
+		ss += " flags=" + client.FlagsString()
 		ss += string(protocol.CRLF)
 
-		clientss = append(clientss, ss)
+		if c.OutputLimit > 0 && len(ss) > c.OutputLimit-list.Len()-32 {
+			tooLarge = true
+			return false
+		}
+		list.WriteString(ss)
 		return true
 	})
 
-	protocol.WriteBulkString(res, strings.Join(clientss, ""))
+	if tooLarge {
+		protocol.WriteError(res, "ERR response exceeds output limit")
+		return
+	}
+	protocol.WriteBulkString(res, list.String())
 }
 
 // clientKillSubCommand Kills the connection of a client.
-func clientKillSubCommand(c *client.Client, res *bytes.Buffer) {
+func (s *Server) clientKillSubCommand(c *client.Client, res *bytes.Buffer) {
 
-	if c.Argc < 2 {
+	if c.Argc != 3 {
 		res.Write(NewGenericError("wrong number of arguments for 'kill' subcommand for 'client' command"))
 		return
 	}
@@ -197,28 +168,32 @@ func clientKillSubCommand(c *client.Client, res *bytes.Buffer) {
 			return
 		}
 
-		server.killClient(c, res, KillClientByID, id)
+		s.killClient(c, res, KillClientByID, id)
+		return
 	}
 
 	// Kill by the client remote address (addr:port)
 	if bytes.Equal(filter, []byte("address")) {
-		if bytes.Equal(c.Argv[2], []byte(c.Conn.RemoteAddr().String())) {
+		if bytes.Equal(c.Argv[2], []byte(c.RemoteAddr)) {
 			res.Write(protocol.MakeBool(false))
 			return
 		}
 
-		server.killClient(c, res, KillClientByAddr, string(c.Argv[2]))
+		s.killClient(c, res, KillClientByAddr, string(c.Argv[2]))
+		return
 	}
 
 	// Kill by the client name
 	if bytes.Equal(filter, []byte("user")) {
-		if bytes.Equal(c.Argv[2], []byte(c.Name)) {
+		if bytes.Equal(c.Argv[2], []byte(c.Name())) {
 			res.Write(protocol.MakeBool(false))
 			return
 		}
 
-		server.killClient(c, res, KillClientByName, string(c.Argv[2]))
+		s.killClient(c, res, KillClientByName, string(c.Argv[2]))
+		return
 	}
+	protocol.WriteError(res, "ERR invalid CLIENT KILL filter")
 }
 
 // clientSetNameSubCommand Sets the name of the client.
@@ -228,11 +203,11 @@ func clientSetNameSubCommand(c *client.Client, res *bytes.Buffer) {
 		return
 	}
 
-	c.Name = string(c.Argv[1])
+	c.SetName(string(c.Argv[1]))
 	res.Write(protocol.RespOK)
 }
 
 // clientGetNameSubCommand Returns the name of the client.
 func clientGetNameSubCommand(c *client.Client, res *bytes.Buffer) {
-	protocol.WriteBulkString(res, c.Name)
+	protocol.WriteBulkString(res, c.Name())
 }

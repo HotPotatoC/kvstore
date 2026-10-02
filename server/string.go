@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"strconv"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
@@ -25,6 +26,10 @@ func getCommand(c *client.Client, res *bytes.Buffer) {
 		return
 	}
 
+	if c.OutputLimit > 0 && len(v.Data) > c.OutputLimit-32 {
+		protocol.WriteError(res, "ERR response exceeds output limit")
+		return
+	}
 	protocol.WriteBulkString(res, v.Data)
 }
 
@@ -38,6 +43,7 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 	key, value := string(c.Argv[0]), string(c.Argv[1])
 
 	expiry := time.Duration(0)
+	condition := ""
 	if c.Argc > 2 {
 		option := string(bytes.ToLower(c.Argv[2]))
 		switch {
@@ -66,24 +72,32 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 				return
 			}
 
-			if c.DB.Exists(key) {
-				protocol.WriteNull(res)
-				return
-			}
+			condition = "nx"
 		case option == "xx": // set only if key exists
 			if c.Argc != 3 {
 				res.Write(NewGenericError("syntax error"))
 				return
 			}
 
-			if !c.DB.Exists(key) {
-				protocol.WriteNull(res)
-				return
-			}
+			condition = "xx"
 		}
 	}
 
-	c.DB.Store(datastructure.NewItem(key, value, expiry))
+	item := datastructure.NewItem(key, value, expiry)
+	switch condition {
+	case "nx":
+		if !c.DB.StoreIfAbsent(item) {
+			protocol.WriteNull(res)
+			return
+		}
+	case "xx":
+		if !c.DB.StoreIfPresent(item) {
+			protocol.WriteNull(res)
+			return
+		}
+	default:
+		c.DB.Store(item)
+	}
 
 	res.Write(protocol.RespOK)
 }
@@ -119,11 +133,19 @@ func keysCommand(c *client.Client, res *bytes.Buffer) {
 		dbKeys = c.DB.KeysWithPattern(pattern)
 	}
 
-	var keys [][]byte
-
-	for _, k := range dbKeys {
-		keys = append(keys, protocol.MakeBulkString(k))
+	// Check the complete encoded size before constructing the response.
+	size := 32
+	for _, key := range dbKeys {
+		size += len(key) + 32
+		if c.OutputLimit > 0 && size > c.OutputLimit {
+			protocol.WriteError(res, "ERR response exceeds output limit")
+			return
+		}
 	}
-
-	res.Write(protocol.MakeArray(keys...))
+	res.WriteByte(protocol.Array)
+	res.WriteString(strconv.Itoa(len(dbKeys)))
+	res.Write(protocol.CRLF)
+	for _, key := range dbKeys {
+		protocol.WriteBulkString(res, key)
+	}
 }

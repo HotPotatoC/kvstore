@@ -1,6 +1,8 @@
 package client
 
 import (
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
@@ -45,9 +47,12 @@ type Client struct {
 	// ID is the incremental ID of the client.
 	ID int64
 	// Name is the name of the client.
-	Name string
+	name   string
+	nameMu sync.RWMutex
 	// Flags is a bitmask of client options.
-	Flags Flags
+	flags       atomic.Uint32
+	RemoteAddr  string
+	OutputLimit int
 	// Conn is the underlying connection.
 	Conn gnet.Conn
 	// DB is the database client.
@@ -66,15 +71,29 @@ type Client struct {
 
 // HasFlag returns true if the client has the specified flag.
 func (c *Client) HasFlag(flag Flags) bool {
-	return c.Flags&flag != 0
+	return Flags(c.flags.Load())&flag != 0
 }
 
 // AddFlag adds the specified flag to the client.
 func (c *Client) AddFlag(flag Flags) {
-	c.Flags |= flag
+	for {
+		old := c.flags.Load()
+		if c.flags.CompareAndSwap(old, old|uint32(flag)) {
+			return
+		}
+	}
 }
 
 // RemoveFlag removes the specified flag from the client.
 func (c *Client) RemoveFlag(flag Flags) {
-	c.Flags &= ^flag
+	for {
+		old := c.flags.Load()
+		if c.flags.CompareAndSwap(old, old & ^uint32(flag)) {
+			return
+		}
+	}
 }
+
+func (c *Client) FlagsString() string { return Flags(c.flags.Load()).String() }
+func (c *Client) Name() string        { c.nameMu.RLock(); defer c.nameMu.RUnlock(); return c.name }
+func (c *Client) SetName(name string) { c.nameMu.Lock(); c.name = name; c.nameMu.Unlock() }
