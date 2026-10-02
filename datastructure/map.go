@@ -1,38 +1,63 @@
 package datastructure
 
 import (
+	"errors"
 	"hash/fnv"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 const numShards = 256
+
+// Item overhead estimates the item and map/TTL index entries. The budget does
+// not include Go allocator slack, shard buckets, or transient network buffers.
+const itemOverhead = int64(unsafe.Sizeof(Item{})) + 64
+
+var ErrMaxMemory = errors.New("maxmemory limit reached")
+
+func itemBytes(key, value string) int64 {
+	return int64(len(key)) + int64(len(value)) + itemOverhead
+}
 
 // shard is a single partition of the sharded map.
 type shard struct {
 	mu      sync.RWMutex
 	items   map[string]*Item
 	ttlKeys map[string]struct{} // keys that have an expiry set
+	bytes   int64               // accounted bytes, protected by mu
 }
 
 // Map is a thread-safe sharded map.
 type Map struct {
-	shards [numShards]shard
-	nSize  atomic.Int64
+	shards     [numShards]shard
+	nSize      atomic.Int64
+	usedMemory atomic.Int64
+	maxMemory  atomic.Int64
+	done       chan struct{}
+	closeOnce  sync.Once
 }
 
 // NewMap returns a new Map.
 func NewMap() *Map {
-	m := &Map{}
+	m := &Map{done: make(chan struct{})}
 	for i := range m.shards {
 		m.shards[i].items = make(map[string]*Item)
 		m.shards[i].ttlKeys = make(map[string]struct{})
 	}
 	go m.janitor()
 	return m
+}
+
+// Close stops background expiry cleanup. It is safe to call repeatedly.
+func (m *Map) Close() {
+	m.closeOnce.Do(func() {
+		if m.done != nil {
+			close(m.done)
+		}
+	})
 }
 
 // shardIndex returns the shard index for the given key.
@@ -46,61 +71,121 @@ func shardIndexBytes(k []byte) uint32 {
 	return h.Sum32() % numShards
 }
 
-// Store stores a new key-value pair.
-func (m *Map) Store(v *Item) {
-	m.store(v, false, false)
+// SetMaxMemory sets the stored-data budget in bytes; zero means unlimited.
+// Configure before accepting writes. Existing data is never evicted.
+func (m *Map) SetMaxMemory(n int64) { m.maxMemory.Store(n) }
+
+// UsedMemory returns accounted key/value and estimated metadata bytes.
+func (m *Map) UsedMemory() int64 { return m.usedMemory.Load() }
+
+// reserveMemory atomically admits growth across all shards.
+func (m *Map) reserveMemory(delta int64) bool {
+	if delta == 0 {
+		return true
+	}
+	if delta < 0 {
+		m.usedMemory.Add(delta)
+		return true
+	}
+	for {
+		used := m.usedMemory.Load()
+		limit := m.maxMemory.Load()
+		if limit > 0 && (used > limit || delta > limit-used) {
+			return false
+		}
+		if m.usedMemory.CompareAndSwap(used, used+delta) {
+			return true
+		}
+	}
 }
+
+// Store stores a new key-value pair if it fits the configured budget.
+func (m *Map) Store(v *Item) { _, _ = m.StoreLimited(v) }
+
+// StoreLimited returns an error if the item would exceed the memory budget.
+func (m *Map) StoreLimited(v *Item) (bool, error) { return m.store(v, false, false) }
 
 // StoreIfAbsent stores the item only if its key is absent or expired.
 func (m *Map) StoreIfAbsent(v *Item) bool {
-	return m.store(v, true, false)
+	stored, _ := m.store(v, true, false)
+	return stored
 }
 
 // StoreIfPresent replaces the item only if its key exists and is not expired.
 func (m *Map) StoreIfPresent(v *Item) bool {
-	return m.store(v, false, true)
+	stored, _ := m.store(v, false, true)
+	return stored
 }
 
-func (m *Map) store(v *Item, onlyAbsent, onlyPresent bool) bool {
+func (m *Map) store(v *Item, onlyAbsent, onlyPresent bool) (bool, error) {
 	s := &m.shards[shardIndex(v.Key)]
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, exists := m.liveItemLocked(s, v.Key)
+	previous, exists := m.liveItemLocked(s, v.Key)
 	if (onlyAbsent && exists) || (onlyPresent && !exists) {
-		return false
+		return false, nil
+	}
+	delta := itemBytes(v.Key, v.Data)
+	if exists {
+		delta -= itemBytes(previous.Key, previous.Data)
+	}
+	if !m.reserveMemory(delta) {
+		return false, ErrMaxMemory
 	}
 	m.storeLocked(s, v, exists)
-	return true
+	s.bytes += delta
+	return true, nil
 }
 
-// StoreBytes copies transient command data into a new immutable item. Overwrites
-// reuse the stored key string; condition checks and publication share one lock.
+// StoreBytes copies transient command data into a new immutable item.
 func (m *Map) StoreBytes(key, value []byte, ttl time.Duration, onlyAbsent, onlyPresent bool) bool {
-	// Copy the value and allocate the item before locking, as on the string path.
-	v := NewItem("", string(value), ttl)
+	stored, _ := m.StoreBytesLimited(key, value, ttl, onlyAbsent, onlyPresent)
+	return stored
+}
+
+// StoreBytesLimited checks conditions and reserves the memory budget before
+// copying request data. Overwrites reuse the immutable stored key.
+func (m *Map) StoreBytesLimited(key, value []byte, ttl time.Duration, onlyAbsent, onlyPresent bool) (bool, error) {
 	s := &m.shards[shardIndexBytes(key)]
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	previous, exists := m.liveItemLocked(s, string(key))
 	if (onlyAbsent && exists) || (onlyPresent && !exists) {
-		return false
+		return false, nil
 	}
+	delta := int64(len(key)) + int64(len(value)) + itemOverhead
+	if exists {
+		delta -= itemBytes(previous.Key, previous.Data)
+	}
+	if !m.reserveMemory(delta) {
+		return false, ErrMaxMemory
+	}
+	v := NewItem("", string(value), ttl)
 	if exists {
 		v.Key = previous.Key
 	} else {
 		v.Key = string(key)
 	}
 	m.storeLocked(s, v, exists)
-	return true
+	s.bytes += delta
+	return true, nil
+}
+
+// removeLocked releases all accounting for an existing key. Caller holds s.mu.
+func (m *Map) removeLocked(s *shard, key string, item *Item) {
+	delete(s.items, key)
+	delete(s.ttlKeys, key)
+	n := itemBytes(item.Key, item.Data)
+	s.bytes -= n
+	m.usedMemory.Add(-n)
+	m.nSize.Add(-1)
 }
 
 // liveItemLocked treats expired keys as absent. The caller holds s.mu.
 func (m *Map) liveItemLocked(s *shard, key string) (*Item, bool) {
 	previous, exists := s.items[key]
-	if exists && previous.HasFlag(ItemFlagExpireXX) && time.Now().After(previous.ExpiresAt) {
-		delete(s.items, key)
-		delete(s.ttlKeys, key)
-		m.nSize.Add(-1)
+	if exists && previous.HasFlag(ItemFlagExpireXX) && !time.Now().Before(previous.ExpiresAt) {
+		m.removeLocked(s, key, previous)
 		return nil, false
 	}
 	return previous, exists
@@ -130,9 +215,13 @@ func (m *Map) Expire(k string, ttl time.Duration) int64 {
 	s := &m.shards[shardIndex(k)]
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	item, ok := s.items[k]
+	item, ok := m.liveItemLocked(s, k)
 	if !ok {
 		return 0
+	}
+	if ttl <= 0 {
+		m.removeLocked(s, k, item)
+		return 1
 	}
 
 	updated := *item
@@ -145,7 +234,7 @@ func (m *Map) Expire(k string, ttl time.Duration) int64 {
 	}
 	s.ttlKeys[k] = struct{}{}
 
-	return m.nSize.Load()
+	return 1
 }
 
 // Get returns the value of the key.
@@ -157,7 +246,7 @@ func (m *Map) Get(k string) (*Item, bool) {
 	if !ok {
 		return nil, false
 	}
-	if !item.HasFlag(ItemFlagExpireXX) || !time.Now().After(item.ExpiresAt) {
+	if !item.HasFlag(ItemFlagExpireXX) || time.Now().Before(item.ExpiresAt) {
 		return item, true
 	}
 
@@ -167,57 +256,24 @@ func (m *Map) Get(k string) (*Item, bool) {
 	if !ok {
 		return nil, false
 	}
-	if item.HasFlag(ItemFlagExpireXX) && time.Now().After(item.ExpiresAt) {
-		delete(s.items, k)
-		delete(s.ttlKeys, k)
-		m.nSize.Add(-1)
+	if item.HasFlag(ItemFlagExpireXX) && !time.Now().Before(item.ExpiresAt) {
+		m.removeLocked(s, k, item)
 		return nil, false
 	}
 	return item, true
 }
 
-// Delete deletes the key.
+// Delete deletes one literal key. Expired keys count as absent.
 func (m *Map) Delete(k string) int64 {
-	if k == "*" {
-		return m.Clear()
-	}
-
-	// Literal keys take precedence over glob patterns.
 	s := &m.shards[shardIndex(k)]
 	s.mu.Lock()
-	if _, exists := s.items[k]; exists {
-		delete(s.items, k)
-		delete(s.ttlKeys, k)
-		m.nSize.Add(-1)
-		s.mu.Unlock()
-		return 1
-	}
-	s.mu.Unlock()
-
-	if !strings.ContainsAny(k, "*?[\\") {
+	defer s.mu.Unlock()
+	item, exists := m.liveItemLocked(s, k)
+	if !exists {
 		return 0
 	}
-	if _, err := filepath.Match(k, ""); err != nil {
-		return 0
-	}
-
-	var deletedN int64
-	for i := range m.shards {
-		s := &m.shards[i]
-		s.mu.Lock()
-		var shardDeleted int64
-		for key := range s.items {
-			if match, _ := filepath.Match(k, key); match {
-				delete(s.items, key)
-				delete(s.ttlKeys, key)
-				shardDeleted++
-			}
-		}
-		m.nSize.Add(-shardDeleted)
-		deletedN += shardDeleted
-		s.mu.Unlock()
-	}
-	return deletedN
+	m.removeLocked(s, k, item)
+	return 1
 }
 
 // Len returns the number of items in the map.
@@ -290,11 +346,7 @@ func (m *Map) keys(pattern string, all bool, maxBytes int) ([]string, bool) {
 
 // Exists checks if the key exists in the map.
 func (m *Map) Exists(k string) bool {
-	idx := shardIndex(k)
-	s := &m.shards[idx]
-	s.mu.RLock()
-	_, ok := s.items[k]
-	s.mu.RUnlock()
+	_, ok := m.Get(k)
 	return ok
 }
 
@@ -305,6 +357,8 @@ func (m *Map) Clear() int64 {
 		s := &m.shards[i]
 		s.mu.Lock()
 		cleared := int64(len(s.items))
+		m.usedMemory.Add(-s.bytes)
+		s.bytes = 0
 		s.items = make(map[string]*Item)
 		s.ttlKeys = make(map[string]struct{})
 		m.nSize.Add(-cleared)
@@ -317,8 +371,14 @@ func (m *Map) Clear() int64 {
 // janitor cleans up expired keys from the map.
 // Runs every second, only scanning keys with TTL.
 func (m *Map) janitor() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
-		time.Sleep(time.Second)
+		select {
+		case <-m.done:
+			return
+		case <-ticker.C:
+		}
 		now := time.Now()
 		for i := range m.shards {
 			s := &m.shards[i]
@@ -328,7 +388,7 @@ func (m *Map) janitor() {
 			var expired []string
 			for k := range s.ttlKeys {
 				item, ok := s.items[k]
-				if ok && item.HasFlag(ItemFlagExpireXX) && now.After(item.ExpiresAt) {
+				if ok && item.HasFlag(ItemFlagExpireXX) && !now.Before(item.ExpiresAt) {
 					expired = append(expired, k)
 				}
 			}
@@ -342,10 +402,8 @@ func (m *Map) janitor() {
 			s.mu.Lock()
 			for _, k := range expired {
 				item, ok := s.items[k]
-				if ok && item.HasFlag(ItemFlagExpireXX) && now.After(item.ExpiresAt) {
-					delete(s.items, k)
-					delete(s.ttlKeys, k)
-					m.nSize.Add(-1)
+				if ok && item.HasFlag(ItemFlagExpireXX) && !now.Before(item.ExpiresAt) {
+					m.removeLocked(s, k, item)
 				}
 			}
 			s.mu.Unlock()

@@ -50,24 +50,21 @@ func fillMap(hmap *datastructure.Map) {
 	})
 }
 
-func Test_DeletePattern(t *testing.T) {
+func Test_DeleteTreatsPatternsLiterally(t *testing.T) {
 	hmap := datastructure.NewMap()
+	defer hmap.Close()
 	fillMap(hmap)
-
-	if n := hmap.Delete("*"); n != 6 {
-		t.Errorf("Delete * failed: expected 6, got %d", n)
+	for _, key := range []string{"*", "h[a-e]llo", "h*llo"} {
+		if n := hmap.Delete(key); n != 0 {
+			t.Fatalf("Delete(%q) = %d", key, n)
+		}
+		hmap.Store(datastructure.NewItem(key, "literal", 0))
+		if n := hmap.Delete(key); n != 1 {
+			t.Fatalf("Delete literal %q = %d", key, n)
+		}
 	}
-
-	fillMap(hmap)
-
-	if n := hmap.Delete("h[a-e]llo"); n != 3 {
-		// Should delete hello, hallo and hbllo, with hxllo, hllo and heeeeello not deleted
-		t.Errorf("Delete h[a-e]llo failed expected 3, got %d", n)
-	}
-
-	if n := hmap.Delete("h*llo"); n != 3 {
-		// Should delete hxllo, hllo, and heeeeello
-		t.Errorf("Delete h?llo failed expected 1, got %d", n)
+	if hmap.Len() != 6 {
+		t.Fatalf("unrelated keys removed: %d", hmap.Len())
 	}
 }
 

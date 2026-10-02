@@ -2,11 +2,11 @@ package server
 
 import (
 	"bytes"
+	"math"
 	"strconv"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
-	"github.com/HotPotatoC/kvstore-rewrite/common"
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
 )
 
@@ -39,48 +39,54 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 		return
 	}
 
-	expiry := time.Duration(0)
-	condition := ""
-	if c.Argc > 2 {
-		option := string(bytes.ToLower(c.Argv[2]))
-		switch {
-		case (option == "ex" || option == "px"): // set expire time
-			if c.Argc != 4 {
+	var expiry time.Duration
+	var expiryArg []byte
+	var expiryOption, condition string
+	for i := 2; i < c.Argc; i++ {
+		option := string(bytes.ToLower(c.Argv[i]))
+		switch option {
+		case "ex", "px":
+			if i+1 >= c.Argc || (expiryOption != "" && expiryOption != option) {
 				res.Write(NewGenericError("syntax error"))
 				return
 			}
-
-			n, err := common.ByteToInt(c.Argv[3])
-			if err != nil {
+			expiryOption = option
+			i++
+			expiryArg = c.Argv[i]
+		case "nx", "xx":
+			if condition != "" && condition != option {
 				res.Write(NewGenericError("syntax error"))
 				return
 			}
-
-			if option == "ex" { // set expire time in seconds
-				expiry = time.Duration(n) * time.Second
-			}
-
-			if option == "px" { // set expire time in milliseconds
-				expiry = time.Duration(n) * time.Millisecond
-			}
-		case option == "nx": // set only if key does not exist
-			if c.Argc != 3 {
-				res.Write(NewGenericError("syntax error"))
-				return
-			}
-
-			condition = "nx"
-		case option == "xx": // set only if key exists
-			if c.Argc != 3 {
-				res.Write(NewGenericError("syntax error"))
-				return
-			}
-
-			condition = "xx"
+			condition = option
+		default:
+			res.Write(NewGenericError("syntax error"))
+			return
 		}
 	}
+	if expiryOption != "" {
+		n, err := parseExpireInteger(expiryArg)
+		if err != nil {
+			res.Write(NewGenericError("value is not an integer or out of range"))
+			return
+		}
+		multiplier := time.Second
+		if expiryOption == "px" {
+			multiplier = time.Millisecond
+		}
+		if n <= 0 || n > math.MaxInt64/int64(multiplier) {
+			res.Write(NewGenericError("invalid expire time in 'set' command"))
+			return
+		}
+		expiry = time.Duration(n) * multiplier
+	}
 
-	if !c.DB.StoreBytes(c.Argv[0], c.Argv[1], expiry, condition == "nx", condition == "xx") {
+	stored, err := c.DB.StoreBytesLimited(c.Argv[0], c.Argv[1], expiry, condition == "nx", condition == "xx")
+	if err != nil {
+		protocol.WriteError(res, "OOM command not allowed when used memory > 'maxmemory'.")
+		return
+	}
+	if !stored {
 		protocol.WriteNull(res)
 		return
 	}
@@ -90,14 +96,15 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 
 // delCommand deletes a key from the database
 func delCommand(c *client.Client, res *bytes.Buffer) {
-	if c.Argc != 1 {
+	if c.Argc < 1 {
 		res.Write(NewGenericError("wrong number of arguments for 'del' command"))
 		return
 	}
 
-	key := string(c.Argv[0])
-
-	n := c.DB.Delete(key)
+	var n int64
+	for _, key := range c.Argv {
+		n += c.DB.Delete(string(key))
+	}
 
 	protocol.WriteInteger(res, n)
 }

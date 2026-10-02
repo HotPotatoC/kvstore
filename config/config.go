@@ -17,6 +17,8 @@ const (
 // Defaults is the default configuration values and
 // is used when a configuration file was not found
 var Defaults = map[string]any{
+	"server.maxclients":         1000,
+	"database.maxmemory":        256 << 20,
 	"server.port":               7275,
 	"server.loops":              4,
 	"server.command_budget":     64,

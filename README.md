@@ -18,9 +18,11 @@ redis-cli -p 7275 # Default kvstore server port is 7275
 
 Current available commands are:
 
-- `SET key value`
+- `SET key value [NX | XX] [EX seconds | PX milliseconds]`
 - `GET key`
-- `DEL key`
+- `DEL key [key ...]` (literal keys, including `*`)
+- `EXPIRE key seconds`, `PEXPIRE key milliseconds`
+- `TTL key`, `PTTL key`
 - `KEYS pattern`
 - `PING`
 - `ECHO value`
@@ -37,11 +39,26 @@ connection. Connections exceeding either pending-byte limit are closed. Commands
 accept at most 1,024 bulk arguments, each at most 8 MiB, and a 16 MiB total frame.
 Incomplete frames remain buffered until more input arrives.
 
-KEYS, pattern DEL, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
+KEYS, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
 (default four), with `server.worker_queue` queued commands (default 16). One slow
 command runs per connection; later commands wait for its response. Saturation
 returns `ERR server overloaded` for that command. Responses exceeding the output
 limit return an error or close the connection.
+
+`database.maxmemory` defaults to 256 MiB: key/value bytes plus an estimate of
+item and index metadata. Writes that exceed this budget return `OOM`; existing
+values and TTLs remain intact. Deletes, expiry, and smaller replacements free
+budget. There is no eviction. This is not a process RSS cap: Go runtime,
+allocator overhead, snapshot decoding, and connection buffers need extra memory.
+`server.maxclients` defaults to 1,000 concurrent connections. Set either limit
+to `0` to disable it. Snapshots exceeding the data budget fail to load.
+
+Snapshots save on clean shutdown using a synced temporary file, atomic rename,
+and directory sync. A failed replacement before rename preserves the previous
+snapshot; a sync error after rename is reported. Crashes still lose changes
+since the last snapshot. SET expiry must be positive; EXPIRE/PEXPIRE with zero
+or negative expiry deletes immediately. Positive expiry values exceeding Go's duration
+range (about 292 years) are rejected. EXPIRE condition flags are unsupported.
 
 ## Benchmarks
 

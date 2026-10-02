@@ -32,7 +32,7 @@ type connectionState struct {
 	closed  bool
 }
 
-type limits struct{ loops, commands, outputBudget, input, output, workers, queue int }
+type limits struct{ loops, commands, outputBudget, input, output, workers, queue, maxClients int }
 
 func positiveConfig(key string, fallback int) int {
 	if n := viper.GetInt(key); n > 0 {
@@ -41,10 +41,14 @@ func positiveConfig(key string, fallback int) int {
 	return fallback
 }
 func serverLimits() limits {
+	maxClients := 1000
+	if viper.IsSet("server.maxclients") {
+		maxClients = viper.GetInt("server.maxclients")
+	}
 	return limits{
 		loops: positiveConfig("server.loops", 4), commands: positiveConfig("server.command_budget", 64), outputBudget: positiveConfig("server.output_budget", 64<<10),
 		input: positiveConfig("server.max_pending_input", 16<<20), output: positiveConfig("server.max_pending_output", 16<<20),
-		workers: positiveConfig("server.workers", 4), queue: positiveConfig("server.worker_queue", 16),
+		workers: positiveConfig("server.workers", 4), queue: positiveConfig("server.worker_queue", 16), maxClients: maxClients,
 	}
 }
 
@@ -79,7 +83,8 @@ type Server struct {
 	shutdownOnce sync.Once
 	limits       limits
 	// nextClientID is the next monotonically increasing client ID.
-	nextClientID int64
+	nextClientID  int64
+	activeClients atomic.Int64
 
 	*gnet.BuiltinEventEngine
 	eng   gnet.Engine
@@ -196,12 +201,19 @@ var clientSubCommands = map[string]command.Command{
 
 // New creates a new server.
 func New() (*Server, error) {
+	maxMemory := int64(256 << 20)
+	if viper.IsSet("database.maxmemory") {
+		maxMemory = viper.GetInt64("database.maxmemory")
+	}
+	if maxMemory < 0 || viper.GetInt("server.maxclients") < 0 {
+		return nil, fmt.Errorf("maxmemory and maxclients must be non-negative")
+	}
 	kvsDB, err := disk.OpenKVSDB(viper.GetString("database.path"))
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := kvsDB.Read()
+	db, err := kvsDB.ReadWithLimit(maxMemory)
 	if err != nil {
 		kvsDB.Close()
 		return nil, err
@@ -268,6 +280,10 @@ func (s *Server) OnBoot(eng gnet.Engine) (action gnet.Action) {
 }
 
 func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
+	if n := s.activeClients.Add(1); s.limits.maxClients > 0 && n > int64(s.limits.maxClients) {
+		s.activeClients.Add(-1)
+		return []byte("-ERR max number of clients reached\r\n"), gnet.Close
+	}
 	c := &client.Client{
 		ID:          atomic.AddInt64(&s.nextClientID, 1),
 		RemoteAddr:  conn.RemoteAddr().String(),
@@ -298,7 +314,9 @@ func (s *Server) OnClose(conn gnet.Conn, err error) (action gnet.Action) {
 			respBufPool.Put(result)
 		}
 		clear(state.argv[:cap(state.argv)])
-		s.clients.Delete(state.client.ID)
+		if _, loaded := s.clients.LoadAndDelete(state.client.ID); loaded {
+			s.activeClients.Add(-1)
+		}
 	}
 	return
 }
@@ -336,6 +354,9 @@ func (s *Server) drainWorkers() {
 func (s *Server) shutdown() {
 	s.drainWorkers()
 	s.shutdownOnce.Do(func() {
+		if s.DB != nil {
+			defer s.DB.Close()
+		}
 		if s.kvsDB != nil {
 			if err := s.kvsDB.Write(s.DB); err != nil {
 				logger.S().Warn("failed saving db: ", err)
@@ -400,10 +421,8 @@ func classifyCommand(args [][]byte) commandKind {
 
 func slowCommand(args [][]byte, kind commandKind) bool {
 	switch kind {
-	case commandGet, commandSet, commandPing:
+	case commandGet, commandSet, commandPing, commandDel:
 		return false
-	case commandDel:
-		return len(args) > 1 && bytes.ContainsAny(args[1], "*?[\\")
 	}
 	if len(args) == 0 {
 		return false
@@ -653,6 +672,7 @@ func flushallCommand(c *client.Client, res *bytes.Buffer) {
 	n := c.DB.Clear()
 	if err := c.KVSDB.Clear(); err != nil {
 		res.Write(NewGenericError(err.Error()))
+		return
 	}
 
 	logger.S().Info("DB saved on disk")

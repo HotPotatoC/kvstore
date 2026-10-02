@@ -22,8 +22,8 @@ func TestCommandClassification(t *testing.T) {
 		{"set", []string{"sEt", "key", "value"}, commandSet, false},
 		{"ping", []string{"PiNg"}, commandPing, false},
 		{"literal del", []string{"dEl", "key"}, commandDel, false},
-		{"glob del", []string{"DeL", "key*"}, commandDel, true},
-		{"escaped del", []string{"DEL", "key\\literal"}, commandDel, true},
+		{"glob del", []string{"DeL", "key*"}, commandDel, false},
+		{"escaped del", []string{"DEL", "key\\literal"}, commandDel, false},
 		{"missing del", []string{"Del"}, commandDel, false},
 		{"keys", []string{"KeYs", "*"}, commandOther, true},
 		{"flush", []string{"FlUsHaLl"}, commandOther, true},
@@ -96,7 +96,7 @@ func TestTrafficShutdownReadDoesNotLockWorkerAdmission(t *testing.T) {
 	}
 }
 
-func TestPatternDELKillPreservesFlagsAndOrder(t *testing.T) {
+func TestKEYSKillPreservesFlagsAndOrder(t *testing.T) {
 	s := newTestServer(t)
 	releases := make([]chan struct{}, s.limits.workers)
 	for i := range releases {
@@ -107,7 +107,7 @@ func TestPatternDELKillPreservesFlagsAndOrder(t *testing.T) {
 	state := conn.ctx.(*connectionState)
 	c := state.client
 	c.AddFlag(client.FlagReadOnly)
-	conn.input = append(protocol.MakeCommand("dEl", "key:*"), protocol.MakeCommand("PING")...)
+	conn.input = append(protocol.MakeCommand("KEYS", "key:*"), protocol.MakeCommand("PING")...)
 	traffic(t, s, conn)
 	if !state.running || !c.HasFlag(client.FlagBusy) || c.HasFlag(client.FlagNone) {
 		t.Fatal("offload did not publish busy state")
@@ -129,7 +129,7 @@ func TestPatternDELKillPreservesFlagsAndOrder(t *testing.T) {
 	if action := s.OnTraffic(conn); action != gnet.Close {
 		t.Fatalf("close request action=%v", action)
 	}
-	if conn.output.String() != ":1\r\n" {
+	if conn.output.String() != "*1\r\n$5\r\nkey:1\r\n" {
 		t.Fatalf("slow response or pipeline order lost: %q", conn.output.String())
 	}
 	if !c.HasFlag(client.FlagNone) || c.HasFlag(client.FlagBusy) || !c.HasFlag(client.FlagCloseASAP) || !c.HasFlag(client.FlagReadOnly) {

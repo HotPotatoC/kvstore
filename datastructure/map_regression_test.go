@@ -120,7 +120,9 @@ func TestMapConcurrentDeleteCounts(t *testing.T) {
 			if i%2 == 0 {
 				deleted.Add(m.Clear())
 			} else {
-				deleted.Add(m.Delete("*"))
+				for j := 0; j < count; j++ {
+					deleted.Add(m.Delete(fmt.Sprint(j)))
+				}
 			}
 		}(i)
 	}
@@ -151,7 +153,6 @@ func TestMapTTLTrackingBounded(t *testing.T) {
 		run  func()
 	}{
 		{"Delete", func() { m.Delete(key) }},
-		{"Pattern", func() { m.Delete("k*") }},
 		{"Clear", func() { m.Clear() }},
 		{"ExpiredGet", func() { m.Expire(key, -time.Second); m.Get(key) }},
 	} {

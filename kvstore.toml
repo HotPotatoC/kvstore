@@ -11,9 +11,13 @@ max_pending_input = 16777216
 max_pending_output = 16777216
 workers = 4
 worker_queue = 16
+# Maximum simultaneous clients; 0 disables the limit.
+maxclients = 1000
 
 [database]
 path = "./dump.kvsdb"
+# Stored key/value bytes plus estimated metadata; 0 disables the limit.
+maxmemory = 268435456
 
 # Logging configurations
 [log]
