@@ -24,6 +24,7 @@ Current available commands are:
 - `EXPIRE key seconds`, `PEXPIRE key milliseconds`
 - `TTL key`, `PTTL key`
 - `KEYS pattern`
+- `INFO [server | clients | memory | stats | persistence | keyspace | default | all]`
 - `PING`
 - `ECHO value`
 - `FLUSHALL`
@@ -39,7 +40,7 @@ connection. Connections exceeding either pending-byte limit are closed. Commands
 accept at most 1,024 bulk arguments, each at most 8 MiB, and a 16 MiB total frame.
 Incomplete frames remain buffered until more input arrives.
 
-KEYS, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
+KEYS, INFO, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
 (default four), with `server.worker_queue` queued commands (default 16). One slow
 command runs per connection; later commands wait for its response. Saturation
 returns `ERR server overloaded` for that command. Responses exceeding the output
@@ -59,6 +60,26 @@ snapshot; a sync error after rename is reported. Crashes still lose changes
 since the last snapshot. SET expiry must be positive; EXPIRE/PEXPIRE with zero
 or negative expiry deletes immediately. Positive expiry values exceeding Go's duration
 range (about 292 years) are rejected. EXPIRE condition flags are unsupported.
+
+`INFO` returns RESP bulk text with Server, Clients, Memory, Stats, Persistence,
+and Keyspace sections. No argument, `default`, and `all` include all six sections;
+section names are case insensitive, and unknown sections return empty text.
+`used_memory` is the stored-data budget accounting described above, not Go heap
+or process RSS. Keyspace counts read shard index sizes without scanning keys;
+expired entries awaiting cleanup remain counted. Values can reflect different
+instants during concurrent changes.
+
+`total_connections_received` counts accepted connections; `rejected_connections`
+counts maxclients refusals. `total_commands_processed` counts dispatched commands,
+including command errors and INFO itself, across event loops and workers.
+`total_error_replies` counts generated errors, including protocol and overload
+errors. `rejected_requests` counts OOM, worker overload, protocol failures, and
+input/output limit rejections. Queue rejections are not processed commands.
+`oom_errors` and `overload_errors` report those rejection causes separately.
+Persistence fields report snapshot saves and clears in the current process:
+`snapshot_last_save_status` is `never`, `ok`, or `err`; failures retain the last
+successful save's Unix timestamp (zero until a successful save). INFO respects
+the configured response limit and reports save status without waiting for disk I/O.
 
 ## Benchmarks
 

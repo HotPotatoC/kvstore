@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
@@ -15,9 +16,32 @@ import (
 
 // KVSDB is for persisting data to disk.
 type KVSDB struct {
-	mu   sync.Mutex
-	file *os.File
-	path string
+	mu           sync.Mutex
+	file         *os.File
+	path         string
+	saving       atomic.Bool
+	saveStatus   atomic.Int32
+	saveFailures atomic.Int64
+	lastSave     atomic.Int64
+}
+
+// SnapshotStats reports saves made by this process without waiting for disk I/O.
+type SnapshotStats struct {
+	InProgress  bool
+	LastStatus  string
+	Failures    int64
+	LastSuccess int64
+}
+
+func (db *KVSDB) SnapshotStats() SnapshotStats {
+	status := "never"
+	switch db.saveStatus.Load() {
+	case 1:
+		status = "ok"
+	case 2:
+		status = "err"
+	}
+	return SnapshotStats{db.saving.Load(), status, db.saveFailures.Load(), db.lastSave.Load()}
 }
 
 // OpenKVSDB opens a kvsDB at the given path.
@@ -56,6 +80,22 @@ func OpenKVSDB(path ...string) (*KVSDB, error) {
 func (db *KVSDB) Write(data *datastructure.Map) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
+	return db.save(data)
+}
+
+// save tracks a snapshot attempt. The caller holds db.mu.
+func (db *KVSDB) save(data *datastructure.Map) (err error) {
+	db.saving.Store(true)
+	defer func() {
+		if err != nil {
+			db.saveFailures.Add(1)
+			db.saveStatus.Store(2)
+		} else {
+			db.lastSave.Store(time.Now().Unix())
+			db.saveStatus.Store(1)
+		}
+		db.saving.Store(false)
+	}()
 	return db.replace(data)
 }
 
@@ -162,7 +202,7 @@ func (db *KVSDB) ReadWithLimit(maxBytes int64) (*datastructure.Map, error) {
 func (db *KVSDB) Clear() error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	return db.replace(nil)
+	return db.save(nil)
 }
 
 // Close closes the kvsDB.

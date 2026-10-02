@@ -117,7 +117,7 @@ var CommandTable = map[string]command.Command{
 		Name:        "info",
 		Description: "Gets server info",
 		Type:        command.Read,
-		Proc:        infoCommand},
+		Proc:        nil},
 	"echo": {Name: "echo", Type: command.Read, Proc: echoCommand},
 	"ping": {
 		Name:        "ping",
@@ -282,8 +282,11 @@ func (s *Server) OnBoot(eng gnet.Engine) (action gnet.Action) {
 func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
 	if n := s.activeClients.Add(1); s.limits.maxClients > 0 && n > int64(s.limits.maxClients) {
 		s.activeClients.Add(-1)
+		s.rejectedConnections.Add(1)
+		s.errorReplies.Add(1)
 		return []byte("-ERR max number of clients reached\r\n"), gnet.Close
 	}
+	s.NumConnections.Add(1)
 	c := &client.Client{
 		ID:          atomic.AddInt64(&s.nextClientID, 1),
 		RemoteAddr:  conn.RemoteAddr().String(),
@@ -326,6 +329,9 @@ func (s *Server) OnClose(conn gnet.Conn, err error) (action gnet.Action) {
 func (s *Server) OnShutdown(_ gnet.Engine) { s.drainWorkers() }
 
 func (s *Server) startWorkers() {
+	if s.StartTime.IsZero() {
+		s.StartTime = time.Now()
+	}
 	s.jobs = make(chan func(), s.limits.queue)
 	for i := 0; i < s.limits.workers; i++ {
 		s.workers.Add(1)
@@ -373,6 +379,7 @@ func (s *Server) writeResponse(conn gnet.Conn, res *bytes.Buffer) bool {
 		return true
 	}
 	if res.Len() > s.limits.output-conn.OutboundBuffered() {
+		s.rejectedRequests.Add(1)
 		return false
 	}
 	_, err := conn.Write(res.Bytes())
@@ -428,7 +435,7 @@ func slowCommand(args [][]byte, kind commandKind) bool {
 		return false
 	}
 	switch {
-	case bytes.EqualFold(args[0], []byte("KEYS")), bytes.EqualFold(args[0], []byte("FLUSHALL")):
+	case bytes.EqualFold(args[0], []byte("KEYS")), bytes.EqualFold(args[0], []byte("FLUSHALL")), bytes.EqualFold(args[0], []byte("INFO")):
 		return true
 	case bytes.EqualFold(args[0], []byte("CLIENT")):
 		return len(args) > 1 && (bytes.EqualFold(args[1], []byte("LIST")) || bytes.EqualFold(args[1], []byte("KILL")))
@@ -478,6 +485,7 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 		return gnet.Close
 	}
 	if conn.InboundBuffered() > s.limits.input || conn.OutboundBuffered() > s.limits.output {
+		s.rejectedRequests.Add(1)
 		return gnet.Close
 	}
 	if s.stopping.Load() {
@@ -517,6 +525,8 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 			break
 		}
 		if err != nil {
+			s.rejectedRequests.Add(1)
+			s.errorReplies.Add(1)
 			protocol.WriteError(res, "ERR protocol error: "+err.Error())
 			action = gnet.Close
 			break
@@ -534,6 +544,9 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 				state.running = false
 				state.client.SetBusy(false)
 				protocol.WriteError(res, "ERR server overloaded")
+				s.rejectedRequests.Add(1)
+				s.overloadErrors.Add(1)
+				s.errorReplies.Add(1)
 			}
 			consumed += n
 			count++
@@ -572,6 +585,20 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 }
 
 func (s *Server) processCommand(rawCmd [][]byte, kind commandKind, c *client.Client, responseBuffer *bytes.Buffer) {
+	s.NumCommands.Add(1)
+	start := responseBuffer.Len()
+	defer func() {
+		reply := responseBuffer.Bytes()[start:]
+		if len(reply) > 0 && reply[0] == protocol.Error {
+			s.errorReplies.Add(1)
+			if bytes.HasPrefix(reply, []byte("-OOM ")) {
+				s.oomErrors.Add(1)
+				s.rejectedRequests.Add(1)
+			} else if bytes.HasPrefix(reply, []byte("-ERR response exceeds output limit")) {
+				s.rejectedRequests.Add(1)
+			}
+		}
+	}()
 	if len(rawCmd) == 0 {
 		responseBuffer.Write(protocol.MakeError("ERR malformed command"))
 		return
@@ -646,7 +673,9 @@ func (s *Server) processCommand(rawCmd [][]byte, kind commandKind, c *client.Cli
 
 	c.SetBusy(true)
 
-	if cmd.Proc == nil {
+	if string(recvCmdBytes) == "info" {
+		s.infoCommand(c, responseBuffer)
+	} else if cmd.Proc == nil {
 		s.clientCommand(c, responseBuffer)
 	} else {
 		cmd.Proc(c, responseBuffer)

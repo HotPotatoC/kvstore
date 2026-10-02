@@ -78,6 +78,22 @@ func (m *Map) SetMaxMemory(n int64) { m.maxMemory.Store(n) }
 // UsedMemory returns accounted key/value and estimated metadata bytes.
 func (m *Map) UsedMemory() int64 { return m.usedMemory.Load() }
 
+// MaxMemory returns the configured stored-data budget; zero means unlimited.
+func (m *Map) MaxMemory() int64 { return m.maxMemory.Load() }
+
+// KeyspaceStats counts stored keys and expiry entries without visiting items.
+// Expired keys remain counted until lazy or background cleanup removes them.
+func (m *Map) KeyspaceStats() (keys, expires int64) {
+	for i := range m.shards {
+		s := &m.shards[i]
+		s.mu.RLock()
+		keys += int64(len(s.items))
+		expires += int64(len(s.ttlKeys))
+		s.mu.RUnlock()
+	}
+	return
+}
+
 // reserveMemory atomically admits growth across all shards.
 func (m *Map) reserveMemory(delta int64) bool {
 	if delta == 0 {
