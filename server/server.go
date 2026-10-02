@@ -29,6 +29,11 @@ type parser struct {
 	pr *protocol.Reader
 }
 
+var (
+	dataBufPool = sync.Pool{New: func() any { b := make([]byte, 0, 4096); return &b }}
+	respBufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+)
+
 // Server is the main server struct.
 type Server struct {
 	// PID of the server process.
@@ -241,7 +246,7 @@ func (s *Server) OnBoot(eng gnet.Engine) (action gnet.Action) {
 }
 
 func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
-	client := &client.Client{
+	c := &client.Client{
 		ID:         atomic.AddInt64(&s.nextClientID, 1),
 		Flags:      client.FlagNone,
 		Conn:       conn,
@@ -250,7 +255,8 @@ func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
 		CreateTime: time.Now(),
 	}
 
-	s.clients.Store(conn.RemoteAddr().String(), client)
+	conn.SetContext(c)
+	s.clients.Store(c.ID, c)
 	logger.S().Debugf("a new connection to the server has been opened [%s]", conn.RemoteAddr().String())
 	return
 }
@@ -258,7 +264,9 @@ func (s *Server) OnOpen(conn gnet.Conn) (out []byte, action gnet.Action) {
 func (s *Server) OnClose(conn gnet.Conn, err error) (action gnet.Action) {
 	logger.S().Debugf("client closed the connection [%s]", conn.RemoteAddr().String())
 
-	s.clients.Delete(conn.RemoteAddr().String())
+	if c, ok := conn.Context().(*client.Client); ok {
+		s.clients.Delete(c.ID)
+	}
 	return
 }
 
@@ -276,6 +284,11 @@ func (s *Server) OnShutdown(svr gnet.Engine) {
 }
 
 func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
+	client, ok := c.Context().(*client.Client)
+	if !ok {
+		return gnet.Close
+	}
+
 	size := c.InboundBuffered()
 	if size == 0 {
 		return gnet.None
@@ -286,15 +299,21 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		return gnet.Close
 	}
 
-	// Make a copy of the data to own it in the worker goroutine.
-	dataCopy := make([]byte, size)
-	copy(dataCopy, data)
+	bufPtr := dataBufPool.Get().(*[]byte)
+	if cap(*bufPtr) < size {
+		*bufPtr = make([]byte, size)
+	} else {
+		*bufPtr = (*bufPtr)[:size]
+	}
+	copy(*bufPtr, data)
 	c.Discard(size)
 
 	err = s.pool.Submit(func() {
-		s.handle(dataCopy, c)
+		s.handle(*bufPtr, client)
+		dataBufPool.Put(bufPtr)
 	})
 	if err != nil {
+		dataBufPool.Put(bufPtr)
 		logger.S().Error("failed to submit task to pool: ", err)
 	}
 
@@ -315,49 +334,112 @@ func (s *Server) bindToAddress(addr string) {
 }
 
 // handle handles client requests.
-func (s *Server) handle(data []byte, conn gnet.Conn) {
+func (s *Server) handle(data []byte, c *client.Client) {
 	p := s.parserPool.Get().(*parser)
 	defer s.parserPool.Put(p)
 	p.br.Reset(data)
 	p.pr.Reset(p.br)
 
-	// A buffer to accumulate all responses for the pipeline.
-	var responseBuffer bytes.Buffer
+	responseBuffer := respBufPool.Get().(*bytes.Buffer)
+	responseBuffer.Reset()
 
 	for {
 		obj, err := p.pr.ReadObject()
 		if err != nil {
 			if err != io.EOF {
-				// A real syntax error in the middle of a pipeline.
 				responseBuffer.Write(protocol.MakeError("ERR protocol error: " + err.Error()))
 			}
 			break
 		}
 
-		s.processCommand(obj, conn, &responseBuffer)
+		s.processCommand(obj, c, responseBuffer)
 	}
 
-	// write the entire batch of responses.
-	if responseBuffer.Len() > 0 {
-		conn.AsyncWrite(responseBuffer.Bytes(), nil)
-	}
-}
-func (s *Server) processCommand(obj any, conn gnet.Conn, responseBuffer *bytes.Buffer) {
-	v, ok := s.clients.Load(conn.RemoteAddr().String())
-	if !ok {
+	if responseBuffer.Len() == 0 {
+		respBufPool.Put(responseBuffer)
 		return
 	}
 
+	// AsyncWrite retains the bytes until its callback runs. Even a submission
+	// error can leave the write queued, so only the callback may recycle them.
+	if err := c.Conn.AsyncWrite(responseBuffer.Bytes(), func(_ gnet.Conn, _ error) error {
+		respBufPool.Put(responseBuffer)
+		return nil
+	}); err != nil {
+		logger.S().Error("failed to write response: ", err)
+	}
+}
+
+var argvPool = sync.Pool{New: func() any { s := make([][]byte, 0, 8); return &s }}
+
+func (s *Server) processCommand(obj any, c *client.Client, responseBuffer *bytes.Buffer) {
 	rawCmd, ok := obj.([]any)
 	if !ok || len(rawCmd) == 0 {
 		responseBuffer.Write(protocol.MakeError("ERR malformed command"))
 		return
 	}
-	recvCmdBytes := bytes.ToLower(rawCmd[0].([]byte))
+	recvCmdBytes := rawCmd[0].([]byte)
+	for i, ch := range recvCmdBytes {
+		if ch >= 'A' && ch <= 'Z' {
+			recvCmdBytes[i] = ch + 32
+		}
+	}
 	rawRecvArgv := rawCmd[1:]
-	recvArgv := make([][]byte, len(rawRecvArgv))
+
+	argvPtr := argvPool.Get().(*[][]byte)
+	defer func() {
+		c.Argv = nil
+		clear(*argvPtr)
+		argvPool.Put(argvPtr)
+	}()
+	*argvPtr = (*argvPtr)[:0]
+	if cap(*argvPtr) < len(rawRecvArgv) {
+		*argvPtr = make([][]byte, len(rawRecvArgv))
+	} else {
+		*argvPtr = (*argvPtr)[:len(rawRecvArgv)]
+	}
+	recvArgv := *argvPtr
 	for i, v := range rawRecvArgv {
 		recvArgv[i] = v.([]byte)
+	}
+
+	switch {
+	case len(recvCmdBytes) == 3 && recvCmdBytes[0] == 'g' && recvCmdBytes[1] == 'e' && recvCmdBytes[2] == 't':
+		c.Command = "get"
+		c.Argv = recvArgv
+		c.Argc = len(recvArgv)
+		c.RemoveFlag(client.FlagNone)
+		c.AddFlag(client.FlagBusy)
+		getCommand(c, responseBuffer)
+		s.afterCommand(c, responseBuffer)
+		return
+	case len(recvCmdBytes) == 3 && recvCmdBytes[0] == 's' && recvCmdBytes[1] == 'e' && recvCmdBytes[2] == 't':
+		c.Command = "set"
+		c.Argv = recvArgv
+		c.Argc = len(recvArgv)
+		c.RemoveFlag(client.FlagNone)
+		c.AddFlag(client.FlagBusy)
+		setCommand(c, responseBuffer)
+		s.afterCommand(c, responseBuffer)
+		return
+	case len(recvCmdBytes) == 3 && recvCmdBytes[0] == 'd' && recvCmdBytes[1] == 'e' && recvCmdBytes[2] == 'l':
+		c.Command = "del"
+		c.Argv = recvArgv
+		c.Argc = len(recvArgv)
+		c.RemoveFlag(client.FlagNone)
+		c.AddFlag(client.FlagBusy)
+		delCommand(c, responseBuffer)
+		s.afterCommand(c, responseBuffer)
+		return
+	case len(recvCmdBytes) == 4 && recvCmdBytes[0] == 'p' && recvCmdBytes[1] == 'i' && recvCmdBytes[2] == 'n' && recvCmdBytes[3] == 'g':
+		c.Command = "ping"
+		c.Argv = recvArgv
+		c.Argc = len(recvArgv)
+		c.RemoveFlag(client.FlagNone)
+		c.AddFlag(client.FlagBusy)
+		pingCommand(c, responseBuffer)
+		s.afterCommand(c, responseBuffer)
+		return
 	}
 
 	cmd, ok := CommandTable[string(recvCmdBytes)]
@@ -381,7 +463,6 @@ func (s *Server) processCommand(obj any, conn gnet.Conn, responseBuffer *bytes.B
 		cmd = subCmd
 	}
 
-	c := v.(*client.Client)
 	c.Command = cmd.Name
 	c.Argv = recvArgv
 	c.Argc = len(recvArgv)
@@ -395,7 +476,7 @@ func (s *Server) processCommand(obj any, conn gnet.Conn, responseBuffer *bytes.B
 
 // pingCommand handles ping command.
 func pingCommand(c *client.Client, res *bytes.Buffer) {
-	res.Write(protocol.MakeSimpleString("PONG"))
+	res.Write(protocol.RespPONG)
 }
 
 // flushallCommand clears all keys and values from the database.
@@ -408,11 +489,9 @@ func flushallCommand(c *client.Client, res *bytes.Buffer) {
 
 	logger.S().Info("DB saved on disk")
 
-	res.Write(protocol.MakeInteger(n))
+	protocol.WriteInteger(res, n)
 }
 
-// commandCommand sends all registered commands to the client.
-// TODO: implement this.
 func commandCommand(c *client.Client, res *bytes.Buffer) {
-	res.Write(protocol.MakeError("NOT_IMPLEMENTED"))
+	protocol.WriteError(res, "NOT_IMPLEMENTED")
 }

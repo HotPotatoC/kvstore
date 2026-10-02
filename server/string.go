@@ -21,11 +21,11 @@ func getCommand(c *client.Client, res *bytes.Buffer) {
 
 	v, ok := c.DB.Get(key)
 	if !ok {
-		res.Write(protocol.MakeNull())
+		protocol.WriteNull(res)
 		return
 	}
 
-	res.Write(protocol.MakeBulkString(v.Data.(string)))
+	protocol.WriteBulkString(res, v.Data)
 }
 
 // setCommand sets the value of a key in the database
@@ -67,7 +67,7 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 			}
 
 			if c.DB.Exists(key) {
-				res.Write(protocol.MakeNull())
+				protocol.WriteNull(res)
 				return
 			}
 		case option == "xx": // set only if key exists
@@ -77,7 +77,7 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 			}
 
 			if !c.DB.Exists(key) {
-				res.Write(protocol.MakeNull())
+				protocol.WriteNull(res)
 				return
 			}
 		}
@@ -85,7 +85,7 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 
 	c.DB.Store(datastructure.NewItem(key, value, expiry))
 
-	res.Write(protocol.MakeSimpleString("OK"))
+	res.Write(protocol.RespOK)
 }
 
 // delCommand deletes a key from the database
@@ -99,7 +99,7 @@ func delCommand(c *client.Client, res *bytes.Buffer) {
 
 	n := c.DB.Delete(key)
 
-	res.Write(protocol.MakeInteger(n))
+	protocol.WriteInteger(res, n)
 }
 
 // keysCommand returns all keys in the database

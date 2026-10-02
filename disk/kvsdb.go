@@ -60,7 +60,7 @@ func (db *KVSDB) Write(data *datastructure.Map) error {
 
 // Read reads the given data from the kvsDB.
 func (db *KVSDB) Read() (*datastructure.Map, error) {
-	var data datastructure.Map
+	data := datastructure.NewMap()
 	decoder := msgpack.NewDecoder(db.file)
 	for {
 		var item datastructure.Item
@@ -72,7 +72,7 @@ func (db *KVSDB) Read() (*datastructure.Map, error) {
 		}
 		data.Store(&item)
 	}
-	return &data, nil
+	return data, nil
 }
 
 // Clear clears the kvsDB.

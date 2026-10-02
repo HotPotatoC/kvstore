@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"bytes"
 	"strconv"
 )
 
@@ -21,7 +22,51 @@ var (
 	// CRLF represents the end of a line.
 	CRLF      = []byte{'\r', '\n'}
 	nullBytes = []byte("$-1\r\n")
+
+	// RespOK is the pre-computed RESP OK response.
+	RespOK = []byte("+OK\r\n")
+	// RespPONG is the pre-computed RESP PONG response.
+	RespPONG = []byte("+PONG\r\n")
+	// RespNull is the pre-computed RESP null bulk string response.
+	RespNull = nullBytes
 )
+
+// WriteSimpleString writes a simple string RESP response to w.
+func WriteSimpleString(w *bytes.Buffer, s string) {
+	w.WriteByte(SimpleString)
+	w.WriteString(s)
+	w.Write(CRLF)
+}
+
+// WriteError writes an error RESP response to w.
+func WriteError(w *bytes.Buffer, s string) {
+	w.WriteByte(Error)
+	w.WriteString(s)
+	w.Write(CRLF)
+}
+
+// WriteInteger writes an integer RESP response to w.
+func WriteInteger(w *bytes.Buffer, i int64) {
+	w.WriteByte(Integer)
+	var buf [20]byte
+	w.Write(strconv.AppendInt(buf[:0], i, 10))
+	w.Write(CRLF)
+}
+
+// WriteBulkString writes a bulk string RESP response to w.
+func WriteBulkString(w *bytes.Buffer, s string) {
+	w.WriteByte(BulkString)
+	var buf [20]byte
+	w.Write(strconv.AppendInt(buf[:0], int64(len(s)), 10))
+	w.Write(CRLF)
+	w.WriteString(s)
+	w.Write(CRLF)
+}
+
+// WriteNull writes a null bulk string RESP response to w.
+func WriteNull(w *bytes.Buffer) {
+	w.Write(nullBytes)
+}
 
 // MakeCommand creates a command protocol object.
 func MakeCommand(args ...string) []byte {
@@ -78,18 +123,17 @@ func MakeInteger(i int64) []byte {
 	return b
 }
 
+var (
+	respTrue  = []byte(":1\r\n")
+	respFalse = []byte(":0\r\n")
+)
+
 // MakeBool creates a bool protocol object. (basically an integer with value 1 or 0)
 func MakeBool(b bool) []byte {
-	bb := make([]byte, 4)
-	bb[0] = Integer
-	bb[2] = '\r'
-	bb[3] = '\n'
 	if b {
-		bb[1] = '1'
-	} else {
-		bb[1] = '0'
+		return respTrue
 	}
-	return bb
+	return respFalse
 }
 
 // MakeBulkString creates a bulk string protocol object.

@@ -21,5 +21,5 @@ type Stats struct {
 // infoCommand is the command to get server info
 // TODO: implement
 func infoCommand(c *client.Client, res *bytes.Buffer) {
-	res.Write(protocol.MakeError("NOT_IMPLEMENTED"))
+	protocol.WriteError(res, "NOT_IMPLEMENTED")
 }

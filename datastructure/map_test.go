@@ -10,18 +10,18 @@ import (
 
 func Test_SetGet(t *testing.T) {
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
+	hmap.Store(datastructure.NewItem("key", "value", 0))
 
 	if v, ok := hmap.Get("key"); !ok {
 		t.Errorf("Get failed")
-	} else if string(v.Data.([]byte)) != "value" {
+	} else if v.Data != "value" {
 		t.Errorf("Get failed")
 	}
 }
 
 func Test_Delete(t *testing.T) {
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
+	hmap.Store(datastructure.NewItem("key", "value", 0))
 
 	if n := hmap.Delete("key"); n != 1 {
 		t.Errorf("Delete failed")
@@ -30,14 +30,14 @@ func Test_Delete(t *testing.T) {
 
 var testData = []struct {
 	key   string
-	value []byte
+	value string
 }{
-	{"hello", []byte("value")},
-	{"hallo", []byte("value")},
-	{"hbllo", []byte("value")},
-	{"hllo", []byte("value")},
-	{"hxllo", []byte("value")},
-	{"heeeeello", []byte("value")},
+	{"hello", "value"},
+	{"hallo", "value"},
+	{"hbllo", "value"},
+	{"hllo", "value"},
+	{"hxllo", "value"},
+	{"heeeeello", "value"},
 }
 
 func fillMap(hmap *datastructure.Map) {
@@ -98,7 +98,7 @@ func Test_List(t *testing.T) {
 
 func Test_Exists(t *testing.T) {
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
+	hmap.Store(datastructure.NewItem("key", "value", 0))
 
 	if !hmap.Exists("key") {
 		t.Errorf("Exists failed")
@@ -173,7 +173,7 @@ func Test_Clear(t *testing.T) {
 func Test_SetExpireItem(t *testing.T) {
 	t.Parallel()
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 0))
+	hmap.Store(datastructure.NewItem("key", "value", 0))
 
 	n := hmap.Expire("key", 1*time.Second)
 	if n == 0 {
@@ -198,11 +198,11 @@ func Test_SetExpireItem(t *testing.T) {
 func Test_GetExpired(t *testing.T) {
 	t.Parallel()
 	hmap := datastructure.NewMap()
-	hmap.Store(datastructure.NewItem("key", []byte("value"), 1*time.Second))
+	hmap.Store(datastructure.NewItem("key", "value", 1*time.Second))
 
 	if v, ok := hmap.Get("key"); !ok {
 		t.Errorf("Get failed")
-	} else if string(v.Data.([]byte)) != "value" {
+	} else if v.Data != "value" {
 		t.Errorf("Get failed")
 	}
 

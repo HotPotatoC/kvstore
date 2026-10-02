@@ -39,9 +39,9 @@ func expireGenericCommand(c *client.Client, res *bytes.Buffer, u unit) {
 	}
 
 	if result == 0 {
-		res.Write(protocol.MakeInteger(0))
+		protocol.WriteInteger(res, 0)
 	} else {
-		res.Write(protocol.MakeInteger(1))
+		protocol.WriteInteger(res, 1)
 	}
 }
 
@@ -63,22 +63,21 @@ func ttlGenericCommand(c *client.Client, res *bytes.Buffer, u unit) {
 
 	item, ok := c.DB.Get(key)
 	if !ok {
-		res.Write(protocol.MakeInteger(-2))
+		protocol.WriteInteger(res, -2)
 		return
 	}
 
-	// If the item does not expire, -1 is returned.
 	if item.HasFlag(datastructure.ItemFlagExpireNX) {
-		res.Write(protocol.MakeInteger(-1))
+		protocol.WriteInteger(res, -1)
 		return
 	}
 
 	leftToLive := time.Until(item.ExpiresAt)
 	if u == unitSeconds {
-		res.Write(protocol.MakeInteger(int64(leftToLive / time.Second)))
+		protocol.WriteInteger(res, int64(leftToLive/time.Second))
 	}
 	if u == unitMilliseconds {
-		res.Write(protocol.MakeInteger(int64(leftToLive / time.Millisecond)))
+		protocol.WriteInteger(res, int64(leftToLive/time.Millisecond))
 	}
 }
 
