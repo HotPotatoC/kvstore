@@ -113,6 +113,11 @@ var CommandTable = map[string]command.Command{
 		Description: "Gets all keys",
 		Type:        command.Read,
 		Proc:        keysCommand},
+	"scan": {
+		Name:        "scan",
+		Description: "Scans a bounded page of keys",
+		Type:        command.Read,
+		Proc:        scanCommand},
 	"info": {
 		Name:        "info",
 		Description: "Gets server info",
@@ -435,7 +440,7 @@ func slowCommand(args [][]byte, kind commandKind) bool {
 		return false
 	}
 	switch {
-	case bytes.EqualFold(args[0], []byte("KEYS")), bytes.EqualFold(args[0], []byte("FLUSHALL")), bytes.EqualFold(args[0], []byte("INFO")):
+	case bytes.EqualFold(args[0], []byte("KEYS")), bytes.EqualFold(args[0], []byte("SCAN")), bytes.EqualFold(args[0], []byte("FLUSHALL")), bytes.EqualFold(args[0], []byte("INFO")):
 		return true
 	case bytes.EqualFold(args[0], []byte("CLIENT")):
 		return len(args) > 1 && (bytes.EqualFold(args[1], []byte("LIST")) || bytes.EqualFold(args[1], []byte("KILL")))

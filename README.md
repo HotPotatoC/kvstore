@@ -24,6 +24,7 @@ Current available commands are:
 - `EXPIRE key seconds`, `PEXPIRE key milliseconds`
 - `TTL key`, `PTTL key`
 - `KEYS pattern`
+- `SCAN cursor [MATCH pattern] [COUNT count]`
 - `INFO [server | clients | memory | stats | persistence | keyspace | default | all]`
 - `PING`
 - `ECHO value`
@@ -40,7 +41,7 @@ connection. Connections exceeding either pending-byte limit are closed. Commands
 accept at most 1,024 bulk arguments, each at most 8 MiB, and a 16 MiB total frame.
 Incomplete frames remain buffered until more input arrives.
 
-KEYS, INFO, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
+KEYS, SCAN, INFO, FLUSHALL, and CLIENT LIST/KILL run on `server.workers` workers
 (default four), with `server.worker_queue` queued commands (default 16). One slow
 command runs per connection; later commands wait for its response. Saturation
 returns `ERR server overloaded` for that command. Responses exceeding the output
@@ -80,6 +81,23 @@ Persistence fields report snapshot saves and clears in the current process:
 `snapshot_last_save_status` is `never`, `ok`, or `err`; failures retain the last
 successful save's Unix timestamp (zero until a successful save). INFO respects
 the configured response limit and reports save status without waiting for disk I/O.
+
+Use `SCAN 0` to begin iteration, then pass each returned cursor until it is `0`.
+Empty pages with nonzero cursors are valid. `COUNT` defaults to 10 and is capped
+at 1,024 inspected slots per call, including deleted slots and nonmatches.
+Pages also obey the response limit and a soft 1 ms work budget. `MATCH` supports
+Redis byte glob patterns (`*`, `?`, character classes, and escapes); pathological
+matches exceeding one million matching steps return an error. `TYPE` is unsupported.
+Keys present throughout an iteration are returned; concurrent additions and
+deletions may appear or be omitted. Cursors are not retained across restarts.
+`redis-cli --scan --pattern 'prefix:*'` works. KEYS still performs a full scan.
+
+Expiry cleanup runs every 10 ms, checks at most 1,024 TTL entries per cycle,
+and checks a soft 1 ms time budget between batches of at most 32 entries.
+Expired keys disappear on access immediately; background reclamation may lag
+during large expiry bursts. Deleted scan slots remain charged to the memory
+budget until reused or their shard becomes empty. Spare array capacity, like
+allocator slack, remains outside the estimate.
 
 ## Benchmarks
 

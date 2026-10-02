@@ -141,11 +141,11 @@ func TestMapTTLTrackingBounded(t *testing.T) {
 		m.Store(NewItem(key, "value", time.Hour))
 		m.Expire(key, time.Hour)
 	}
-	if len(s.ttlKeys) != 1 {
-		t.Fatalf("TTL keys = %d, want 1", len(s.ttlKeys))
+	if s.ttlCount != 1 {
+		t.Fatalf("TTL keys = %d, want 1", s.ttlCount)
 	}
 	m.Store(NewItem(key, "value", 0))
-	if len(s.ttlKeys) != 0 {
+	if s.ttlCount != 0 {
 		t.Fatal("permanent replacement retained TTL tracking")
 	}
 	for _, remove := range []struct {
@@ -159,8 +159,8 @@ func TestMapTTLTrackingBounded(t *testing.T) {
 		t.Run(remove.name, func(t *testing.T) {
 			m.Store(NewItem(key, "value", time.Hour))
 			remove.run()
-			if len(s.ttlKeys) != 0 || m.Len() != 0 {
-				t.Fatalf("TTL keys = %d, Len = %d, want 0", len(s.ttlKeys), m.Len())
+			if s.ttlCount != 0 || m.Len() != 0 {
+				t.Fatalf("TTL keys = %d, Len = %d, want 0", s.ttlCount, m.Len())
 			}
 		})
 	}

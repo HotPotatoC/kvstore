@@ -146,11 +146,46 @@ func TestMemoryAccountingConcurrentClearAndWrites(t *testing.T) {
 	for _, item := range m.List() {
 		want += itemBytes(item.Key, item.Data)
 	}
+	for i := range m.shards {
+		for _, slot := range m.shards[i].slots {
+			if slot.item == nil {
+				want += scanSlotBytes
+			}
+		}
+	}
 	if m.UsedMemory() != want || want > 10000 {
 		t.Fatalf("memory=%d actual=%d", m.UsedMemory(), want)
 	}
 	m.Clear()
 	if m.UsedMemory() != 0 {
 		t.Fatal("final clear leaked budget")
+	}
+}
+
+func TestMemoryBudgetChargesRetainedScanSlots(t *testing.T) {
+	var m Map
+	fillOneShard(&m, 100)
+	keys := m.Keys()
+	for _, key := range keys[1:] {
+		m.Delete(key)
+	}
+	item, _ := m.Get(keys[0])
+	want := itemBytes(item.Key, item.Data) + 99*scanSlotBytes
+	if m.UsedMemory() != want {
+		t.Fatalf("retained slot accounting=%d want%d", m.UsedMemory(), want)
+	}
+	// Reusing an existing slot only needs the item's remaining memory.
+	key := keys[1]
+	m.SetMaxMemory(want + itemBytes(key, "v") - scanSlotBytes)
+	if ok, err := m.StoreLimited(NewItem(key, "v", 0)); !ok || err != nil {
+		t.Fatalf("slot reuse: %v %v", ok, err)
+	}
+	if _, err := m.StoreLimited(NewItem(keys[2], "v", 0)); err == nil {
+		t.Fatal("retained slots bypassed memory cap")
+	}
+	m.Delete(key)
+	m.Delete(keys[0])
+	if m.UsedMemory() != 0 || len(m.shards[0].slots) != 0 {
+		t.Fatal("empty shard retained scan index")
 	}
 }
