@@ -73,7 +73,7 @@ type Server struct {
 	// jobs bounds slow command concurrency and queue depth.
 	jobs         chan func()
 	workerMu     sync.Mutex
-	stopping     bool
+	stopping     atomic.Bool
 	workers      sync.WaitGroup
 	drainOnce    sync.Once
 	shutdownOnce sync.Once
@@ -234,7 +234,7 @@ func (s *Server) Run() error {
 
 func (s *Server) Stop() {
 	s.workerMu.Lock()
-	s.stopping = true
+	s.stopping.Store(true)
 	s.workerMu.Unlock()
 	s.engMu.Lock()
 	eng := s.eng
@@ -247,7 +247,7 @@ func (s *Server) Stop() {
 
 func (s *Server) OnBoot(eng gnet.Engine) (action gnet.Action) {
 	s.workerMu.Lock()
-	if s.stopping {
+	if s.stopping.Load() {
 		s.workerMu.Unlock()
 		return gnet.Shutdown
 	}
@@ -323,7 +323,7 @@ func (s *Server) startWorkers() {
 func (s *Server) drainWorkers() {
 	s.drainOnce.Do(func() {
 		s.workerMu.Lock()
-		s.stopping = true
+		s.stopping.Store(true)
 		if s.jobs != nil {
 			close(s.jobs)
 		}
@@ -358,25 +358,69 @@ func (s *Server) writeResponse(conn gnet.Conn, res *bytes.Buffer) bool {
 	return err == nil
 }
 
-func slowCommand(args [][]byte) bool {
+type commandKind uint8
+
+const (
+	commandOther commandKind = iota
+	commandGet
+	commandSet
+	commandDel
+	commandPing
+)
+
+// Classify the common commands once for both worker selection and dispatch.
+func classifyCommand(args [][]byte) commandKind {
+	if len(args) == 0 {
+		return commandOther
+	}
+	name := args[0]
+	switch len(name) {
+	case 3:
+		switch name[0] | 0x20 {
+		case 'g':
+			if name[1]|0x20 == 'e' && name[2]|0x20 == 't' {
+				return commandGet
+			}
+		case 's':
+			if name[1]|0x20 == 'e' && name[2]|0x20 == 't' {
+				return commandSet
+			}
+		case 'd':
+			if name[1]|0x20 == 'e' && name[2]|0x20 == 'l' {
+				return commandDel
+			}
+		}
+	case 4:
+		if name[0]|0x20 == 'p' && name[1]|0x20 == 'i' && name[2]|0x20 == 'n' && name[3]|0x20 == 'g' {
+			return commandPing
+		}
+	}
+	return commandOther
+}
+
+func slowCommand(args [][]byte, kind commandKind) bool {
+	switch kind {
+	case commandGet, commandSet, commandPing:
+		return false
+	case commandDel:
+		return len(args) > 1 && bytes.ContainsAny(args[1], "*?[\\")
+	}
 	if len(args) == 0 {
 		return false
 	}
 	switch {
 	case bytes.EqualFold(args[0], []byte("KEYS")), bytes.EqualFold(args[0], []byte("FLUSHALL")):
 		return true
-	case bytes.EqualFold(args[0], []byte("DEL")):
-		return len(args) > 1 && bytes.ContainsAny(args[1], "*?[\\")
 	case bytes.EqualFold(args[0], []byte("CLIENT")):
 		return len(args) > 1 && (bytes.EqualFold(args[1], []byte("LIST")) || bytes.EqualFold(args[1], []byte("KILL")))
 	}
 	return false
 }
 
-func (s *Server) submitSlow(state *connectionState, args [][]byte) bool {
+func (s *Server) submitSlow(state *connectionState, args [][]byte, kind commandKind) bool {
 	s.workerMu.Lock()
 	defer s.workerMu.Unlock()
-	if s.stopping {
+	if s.stopping.Load() {
 		return false
 	}
 	// args is an owned copy; the connection input may be reused before execution.
@@ -390,7 +434,7 @@ func (s *Server) submitSlow(state *connectionState, args [][]byte) bool {
 		}
 		res := respBufPool.Get().(*bytes.Buffer)
 		res.Reset()
-		s.processCommand(args, state.client, res)
+		s.processCommand(args, kind, state.client, res)
 		state.mu.Lock()
 		if state.closed {
 			state.mu.Unlock()
@@ -417,10 +461,7 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 	if conn.InboundBuffered() > s.limits.input || conn.OutboundBuffered() > s.limits.output {
 		return gnet.Close
 	}
-	s.workerMu.Lock()
-	stopping := s.stopping
-	s.workerMu.Unlock()
-	if stopping {
+	if s.stopping.Load() {
 		return gnet.Close
 	}
 	if state.running {
@@ -462,18 +503,17 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 			break
 		}
 		state.argv = args
-		if slowCommand(args) {
+		kind := classifyCommand(args)
+		if slowCommand(args, kind) {
 			owned := make([][]byte, len(args))
 			for i := range args {
 				owned[i] = bytes.Clone(args[i])
 			}
 			state.running = true
-			state.client.RemoveFlag(client.FlagNone)
-			state.client.AddFlag(client.FlagBusy)
-			if !s.submitSlow(state, owned) {
+			state.client.SetBusy(true)
+			if !s.submitSlow(state, owned, kind) {
 				state.running = false
-				state.client.RemoveFlag(client.FlagBusy)
-				state.client.AddFlag(client.FlagNone)
+				state.client.SetBusy(false)
 				protocol.WriteError(res, "ERR server overloaded")
 			}
 			consumed += n
@@ -482,7 +522,7 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 				break
 			}
 		} else {
-			s.processCommand(args, state.client, res)
+			s.processCommand(args, kind, state.client, res)
 			consumed += n
 			count++
 		}
@@ -512,7 +552,7 @@ func (s *Server) OnTraffic(conn gnet.Conn) (action gnet.Action) {
 	return action
 }
 
-func (s *Server) processCommand(rawCmd [][]byte, c *client.Client, responseBuffer *bytes.Buffer) {
+func (s *Server) processCommand(rawCmd [][]byte, kind commandKind, c *client.Client, responseBuffer *bytes.Buffer) {
 	if len(rawCmd) == 0 {
 		responseBuffer.Write(protocol.MakeError("ERR malformed command"))
 		return
@@ -521,40 +561,36 @@ func (s *Server) processCommand(rawCmd [][]byte, c *client.Client, responseBuffe
 	recvArgv := rawCmd[1:]
 	defer func() { c.Argv = nil }()
 
-	switch {
-	case len(recvCmdBytes) == 3 && lowerCommandByte(recvCmdBytes[0]) == 'g' && lowerCommandByte(recvCmdBytes[1]) == 'e' && lowerCommandByte(recvCmdBytes[2]) == 't':
+	switch kind {
+	case commandGet:
 		c.Command = "get"
 		c.Argv = recvArgv
 		c.Argc = len(recvArgv)
-		c.RemoveFlag(client.FlagNone)
-		c.AddFlag(client.FlagBusy)
+		c.SetBusy(true)
 		getCommand(c, responseBuffer)
 		s.afterCommand(c, responseBuffer)
 		return
-	case len(recvCmdBytes) == 3 && lowerCommandByte(recvCmdBytes[0]) == 's' && lowerCommandByte(recvCmdBytes[1]) == 'e' && lowerCommandByte(recvCmdBytes[2]) == 't':
+	case commandSet:
 		c.Command = "set"
 		c.Argv = recvArgv
 		c.Argc = len(recvArgv)
-		c.RemoveFlag(client.FlagNone)
-		c.AddFlag(client.FlagBusy)
+		c.SetBusy(true)
 		setCommand(c, responseBuffer)
 		s.afterCommand(c, responseBuffer)
 		return
-	case len(recvCmdBytes) == 3 && lowerCommandByte(recvCmdBytes[0]) == 'd' && lowerCommandByte(recvCmdBytes[1]) == 'e' && lowerCommandByte(recvCmdBytes[2]) == 'l':
+	case commandDel:
 		c.Command = "del"
 		c.Argv = recvArgv
 		c.Argc = len(recvArgv)
-		c.RemoveFlag(client.FlagNone)
-		c.AddFlag(client.FlagBusy)
+		c.SetBusy(true)
 		delCommand(c, responseBuffer)
 		s.afterCommand(c, responseBuffer)
 		return
-	case len(recvCmdBytes) == 4 && lowerCommandByte(recvCmdBytes[0]) == 'p' && lowerCommandByte(recvCmdBytes[1]) == 'i' && lowerCommandByte(recvCmdBytes[2]) == 'n' && lowerCommandByte(recvCmdBytes[3]) == 'g':
+	case commandPing:
 		c.Command = "ping"
 		c.Argv = recvArgv
 		c.Argc = len(recvArgv)
-		c.RemoveFlag(client.FlagNone)
-		c.AddFlag(client.FlagBusy)
+		c.SetBusy(true)
 		pingCommand(c, responseBuffer)
 		s.afterCommand(c, responseBuffer)
 		return
@@ -589,8 +625,7 @@ func (s *Server) processCommand(rawCmd [][]byte, c *client.Client, responseBuffe
 	c.Argv = recvArgv
 	c.Argc = len(recvArgv)
 
-	c.RemoveFlag(client.FlagNone)
-	c.AddFlag(client.FlagBusy)
+	c.SetBusy(true)
 
 	if cmd.Proc == nil {
 		s.clientCommand(c, responseBuffer)

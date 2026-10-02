@@ -52,8 +52,7 @@ func (s *Server) killClient(c *client.Client, res *bytes.Buffer, kct KillClientT
 }
 
 func (s *Server) afterCommand(c *client.Client, _ *bytes.Buffer) {
-	c.RemoveFlag(client.FlagBusy)
-	c.AddFlag(client.FlagNone)
+	c.SetBusy(false)
 }
 
 // clientCommand is a command that handles client commands.

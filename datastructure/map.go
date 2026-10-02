@@ -37,8 +37,12 @@ func NewMap() *Map {
 
 // shardIndex returns the shard index for the given key.
 func shardIndex(k string) uint32 {
+	return shardIndexBytes([]byte(k))
+}
+
+func shardIndexBytes(k []byte) uint32 {
 	h := fnv.New32a()
-	h.Write([]byte(k))
+	h.Write(k)
 	return h.Sum32() % numShards
 }
 
@@ -61,16 +65,49 @@ func (m *Map) store(v *Item, onlyAbsent, onlyPresent bool) bool {
 	s := &m.shards[shardIndex(v.Key)]
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	previous, exists := s.items[v.Key]
-	if exists && previous.HasFlag(ItemFlagExpireXX) && time.Now().After(previous.ExpiresAt) {
-		delete(s.items, v.Key)
-		delete(s.ttlKeys, v.Key)
-		m.nSize.Add(-1)
-		exists = false
-	}
+	_, exists := m.liveItemLocked(s, v.Key)
 	if (onlyAbsent && exists) || (onlyPresent && !exists) {
 		return false
 	}
+	m.storeLocked(s, v, exists)
+	return true
+}
+
+// StoreBytes copies transient command data into a new immutable item. Overwrites
+// reuse the stored key string; condition checks and publication share one lock.
+func (m *Map) StoreBytes(key, value []byte, ttl time.Duration, onlyAbsent, onlyPresent bool) bool {
+	// Copy the value and allocate the item before locking, as on the string path.
+	v := NewItem("", string(value), ttl)
+	s := &m.shards[shardIndexBytes(key)]
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	previous, exists := m.liveItemLocked(s, string(key))
+	if (onlyAbsent && exists) || (onlyPresent && !exists) {
+		return false
+	}
+	if exists {
+		v.Key = previous.Key
+	} else {
+		v.Key = string(key)
+	}
+	m.storeLocked(s, v, exists)
+	return true
+}
+
+// liveItemLocked treats expired keys as absent. The caller holds s.mu.
+func (m *Map) liveItemLocked(s *shard, key string) (*Item, bool) {
+	previous, exists := s.items[key]
+	if exists && previous.HasFlag(ItemFlagExpireXX) && time.Now().After(previous.ExpiresAt) {
+		delete(s.items, key)
+		delete(s.ttlKeys, key)
+		m.nSize.Add(-1)
+		return nil, false
+	}
+	return previous, exists
+}
+
+// storeLocked publishes an owned item. The caller holds s.mu.
+func (m *Map) storeLocked(s *shard, v *Item, exists bool) {
 	if s.items == nil {
 		s.items = make(map[string]*Item)
 	}
@@ -86,7 +123,6 @@ func (m *Map) store(v *Item, onlyAbsent, onlyPresent bool) bool {
 	} else {
 		delete(s.ttlKeys, v.Key)
 	}
-	return true
 }
 
 // Expire sets the expiration time of the key.
@@ -205,36 +241,51 @@ func (m *Map) List() map[string]*Item {
 
 // Keys returns the keys of the map.
 func (m *Map) Keys() []string {
-	var keys []string
-	now := time.Now()
-	for i := range m.shards {
-		s := &m.shards[i]
-		s.mu.RLock()
-		for k, item := range s.items {
-			if item.HasFlag(ItemFlagExpireNX) || now.Before(item.ExpiresAt) {
-				keys = append(keys, k)
-			}
-		}
-		s.mu.RUnlock()
-	}
+	keys, _ := m.keys("", true, 0)
 	return keys
 }
 
 // KeysWithPattern returns the keys of the map that match the pattern.
 func (m *Map) KeysWithPattern(pattern string) []string {
+	keys, _ := m.keys(pattern, false, 0)
+	return keys
+}
+
+// KeysWithPatternLimit stops before the response estimate exceeds maxBytes.
+// The estimate reserves 32 bytes for the array and len(key)+32 per key, matching
+// the server's existing output limit. Non-positive limits allow all matches.
+func (m *Map) KeysWithPatternLimit(pattern string, maxBytes int) ([]string, bool) {
+	return m.keys(pattern, pattern == "*", maxBytes)
+}
+
+func (m *Map) keys(pattern string, all bool, maxBytes int) ([]string, bool) {
 	var keys []string
+	remaining := maxBytes - 32
 	now := time.Now()
 	for i := range m.shards {
 		s := &m.shards[i]
 		s.mu.RLock()
 		for k, item := range s.items {
-			if match, _ := filepath.Match(pattern, k); match && (item.HasFlag(ItemFlagExpireNX) || now.Before(item.ExpiresAt)) {
-				keys = append(keys, k)
+			if !item.HasFlag(ItemFlagExpireNX) && !now.Before(item.ExpiresAt) {
+				continue
 			}
+			if !all {
+				if match, _ := filepath.Match(pattern, k); !match {
+					continue
+				}
+			}
+			if maxBytes > 0 {
+				if len(k) > remaining-32 {
+					s.mu.RUnlock()
+					return nil, true
+				}
+				remaining -= len(k) + 32
+			}
+			keys = append(keys, k)
 		}
 		s.mu.RUnlock()
 	}
-	return keys
+	return keys, false
 }
 
 // Exists checks if the key exists in the map.

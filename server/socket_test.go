@@ -186,7 +186,7 @@ func TestDefaultLifecycleAndWorkerDrain(t *testing.T) {
 		t.Fatal("shutdown did not drain worker")
 	}
 	state := &connectionState{client: &client.Client{Conn: &testConn{wakes: make(chan struct{}, 1)}}}
-	if s.submitSlow(state, [][]byte{[]byte("KEYS"), []byte("*")}) {
+	if s.submitSlow(state, [][]byte{[]byte("KEYS"), []byte("*")}, commandOther) {
 		t.Fatal("shutdown accepted new worker job")
 	}
 }
@@ -292,7 +292,7 @@ func TestRunWithoutAddressesCleansUp(t *testing.T) {
 	if err := s.Run(); err == nil {
 		t.Fatal("empty bind addresses accepted")
 	}
-	if s.submitSlow(&connectionState{}, [][]byte{[]byte("KEYS"), []byte("*")}) {
+	if s.submitSlow(&connectionState{}, [][]byte{[]byte("KEYS"), []byte("*")}, commandOther) {
 		t.Fatal("failed Run left worker admission open")
 	}
 }

@@ -94,6 +94,22 @@ func (c *Client) RemoveFlag(flag Flags) {
 	}
 }
 
+// SetBusy changes the command state in one atomic update, preserving options
+// and a close request that may arrive from CLIENT KILL concurrently.
+func (c *Client) SetBusy(busy bool) {
+	state := uint32(FlagNone)
+	if busy {
+		state = uint32(FlagBusy)
+	}
+	for {
+		old := c.flags.Load()
+		next := old & ^uint32(FlagNone|FlagBusy) | state
+		if c.flags.CompareAndSwap(old, next) {
+			return
+		}
+	}
+}
+
 func (c *Client) FlagsString() string { return Flags(c.flags.Load()).String() }
 func (c *Client) Name() string        { c.nameMu.RLock(); defer c.nameMu.RUnlock(); return c.name }
 func (c *Client) SetName(name string) { c.nameMu.Lock(); c.name = name; c.nameMu.Unlock() }

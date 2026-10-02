@@ -7,7 +7,6 @@ import (
 
 	"github.com/HotPotatoC/kvstore-rewrite/client"
 	"github.com/HotPotatoC/kvstore-rewrite/common"
-	"github.com/HotPotatoC/kvstore-rewrite/datastructure"
 	"github.com/HotPotatoC/kvstore-rewrite/protocol"
 )
 
@@ -39,8 +38,6 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 		res.Write(NewGenericError("wrong number of arguments for 'set' command"))
 		return
 	}
-
-	key, value := string(c.Argv[0]), string(c.Argv[1])
 
 	expiry := time.Duration(0)
 	condition := ""
@@ -83,20 +80,9 @@ func setCommand(c *client.Client, res *bytes.Buffer) {
 		}
 	}
 
-	item := datastructure.NewItem(key, value, expiry)
-	switch condition {
-	case "nx":
-		if !c.DB.StoreIfAbsent(item) {
-			protocol.WriteNull(res)
-			return
-		}
-	case "xx":
-		if !c.DB.StoreIfPresent(item) {
-			protocol.WriteNull(res)
-			return
-		}
-	default:
-		c.DB.Store(item)
+	if !c.DB.StoreBytes(c.Argv[0], c.Argv[1], expiry, condition == "nx", condition == "xx") {
+		protocol.WriteNull(res)
+		return
 	}
 
 	res.Write(protocol.RespOK)
@@ -123,24 +109,11 @@ func keysCommand(c *client.Client, res *bytes.Buffer) {
 		return
 	}
 
-	var dbKeys []string
-
 	pattern := string(c.Argv[0])
-
-	if bytes.Equal(c.Argv[0], []byte("*")) {
-		dbKeys = c.DB.Keys()
-	} else {
-		dbKeys = c.DB.KeysWithPattern(pattern)
-	}
-
-	// Check the complete encoded size before constructing the response.
-	size := 32
-	for _, key := range dbKeys {
-		size += len(key) + 32
-		if c.OutputLimit > 0 && size > c.OutputLimit {
-			protocol.WriteError(res, "ERR response exceeds output limit")
-			return
-		}
+	dbKeys, exceeded := c.DB.KeysWithPatternLimit(pattern, c.OutputLimit)
+	if exceeded {
+		protocol.WriteError(res, "ERR response exceeds output limit")
+		return
 	}
 	res.WriteByte(protocol.Array)
 	res.WriteString(strconv.Itoa(len(dbKeys)))
